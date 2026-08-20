@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principal Dashboard | Safar-e-Taleem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+            <span>Safar-e-Taleem</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#overview" class="nav-item active" onclick="document.querySelector('.petrol-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+            <a href="#hybrid" class="nav-item" onclick="generateHybridTimetable(); document.getElementById('schedule-output').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-calendar-days"></i> Hybrid Shift Predictor</a>
+            <a href="#breakdown" class="nav-item" onclick="document.querySelector('.panel-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-users"></i> Student Analytics</a>
+        </nav>
+        <a href="/logout" class="nav-item sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</a>
+    </aside>
+
+    <main class="main-content">
+
+        <div class="topbar">
+            <div>
+                <div class="eyebrow">PRINCIPAL DASHBOARD</div>
+                <h1>Welcome back, Principal {{ user.name if user and user.name else 'Administrator' }}</h1>
+            </div>
+            <div class="avatar-chip">{{ user.name[0] if user and user.name else 'P' }}</div>
+        </div>
+
+        <div id="sos-banner" class="sos-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span></span>
+        </div>
+
+        <div class="petrol-card" id="alert-card" style="border-left: 6px solid {{ '#ef4444' if alert else '#10b981' }};">
+            <div>
+                <div class="petrol-label">PSO FUEL PRICE MONITORING</div>
+                <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '331.2' }} / L</div>
+                <div class="petrol-change" id="status-text">
+                    {% if alert %}
+                    <span class="live-dot" style="background-color: #ef4444;"></span> High Alert: Critical Price Increase (+{{ percentage_change if percentage_change else 0 }}%)
+                    {% else %}
+                    <span class="live-dot"></span> Fuel rates stable across station networks
+                    {% endif %}
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateHybridTimetable()">
+                <i class="fa-solid fa-bolt"></i> Auto-Generate Hybrid Shift
+            </button>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Registered Families</span>
+                    <i class="fa-solid fa-user-graduate metric-icon"></i>
+                </div>
+                <div class="metric-value">{{ total_parents if total_parents else 0 }}</div>
+                <div class="metric-change">{{ total_students }} children enrolled</div>
+            </div>
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Avg. Monthly Transport Cost</span>
+                    <i class="fa-solid fa-gas-pump metric-icon"></i>
+                </div>
+                <div class="metric-value">Rs {{ "{:,.0f}".format(avg_monthly_cost) }}</div>
+                <div class="metric-change">Per household (live petrol price)</div>
+            </div>
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Potential Hybrid Savings</span>
+                    <i class="fa-solid fa-chart-line metric-icon"></i>
+                </div>
+                <div class="metric-value" style="color: #10b981;">40%</div>
+                <div class="metric-change">3-day physical / 2-day online</div>
+            </div>
+        </div>
+
+        <div class="split-grid">
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <p class="panel-title"><i class="fa-solid fa-bus"></i> Transport Mode Breakdown</p>
+                    <span class="badge">Live Census</span>
+                </div>
+                <div class="group-list">
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-person-walking" style="color: var(--primary);"></i>
+                            <div>
+                                <div class="person-name">Walking Groups</div>
+                                <div class="person-role">Recommended for &lt;1 km</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ walking_groups if walking_groups else 0 }} groups • Rs 0 fuel</span>
+                    </div>
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-car-side" style="color: #3b82f6;"></i>
+                            <div>
+                                <div class="person-name">Carpool / Shared Ride</div>
+                                <div class="person-role">Recommended for 1-3 km</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ carpool_groups if carpool_groups else 0 }} groups</span>
+                    </div>
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-motorcycle" style="color: #f59e0b;"></i>
+                            <div>
+                                <div class="person-name">Solo Transport / Van</div>
+                                <div class="person-role">No nearby cluster match</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ solo_count if solo_count else 0 }} families</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <p class="panel-title"><i class="fa-solid fa-chart-line"></i> Petrol Price History</p>
+                    <span class="badge" id="history-badge">Loading...</span>
+                </div>
+                <canvas id="petrol-chart" height="180" style="width: 100%; margin-top: 8px;"></canvas>
+                <div id="schedule-output" style="padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); margin-top: 12px;">
+                    <p style="margin: 0; line-height: 1.5; font-size: 0.9rem;">
+                        <strong>Current Policy:</strong> 5-Day Physical Schedule<br>
+                        <span style="color: var(--text-muted);">When petrol prices surge, click <strong>"Auto-Generate Hybrid Shift"</strong> above to cut parent commuting costs by 40%.</span>
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+<script>
+// Poll for any active SOS alerts school-wide (safety oversight)
+async function refreshSosBanner() {
+    try {
+        const res = await fetch('/api/location/pod');
+        if (!res.ok) return;
+        const data = await res.json();
+        const pod = data.pod || [];
+        const anySos = pod.some((e) => e.is_sos);
+        const banner = document.getElementById('sos-banner');
+        if (!banner) return;
+        banner.style.display = anySos ? 'flex' : 'none';
+        if (anySos) {
+            const names = pod.filter((e) => e.is_sos).map((e) => e.name).join(', ');
+            banner.querySelector('span').textContent = `SOS alert from: ${names}. Please reach out to their route captain immediately.`;
+        }
+    } catch (e) {
+        // silent — retry on next poll
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSosBanner();
+    setInterval(refreshSosBanner, 6000);
+});
+</script>
+
+</body>
+</html>

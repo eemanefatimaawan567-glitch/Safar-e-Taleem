@@ -1,0 +1,16 @@
+Tool 1: Safar-e-Taleem (Safe-Walking Groups)How it works: 
+Instead of paying for a van, parents open the app and type their neighborhood (e.g., "G-11, Islamabad").The AI Part: 
+The AI instantly groups (clusters) 4 or 5 families who live within 1 kilometer of each other and go to the same school.The Result: 
+The app creates a "Walking School Bus" where parents take turns walking the group of children safely to school together. Fuel cost = 0 PKR.
+Our AI is smart. If the school is close, it builds a walking group.
+ If the school is far, it instantly switches to motorcycle or car-pool sharing to make sure fuel costs are cut regardless of distance.
+ Tool 2: The Hybrid Shift Predictor (For Principals)How it works: 
+ The school principal has a simple dashboard. The app monitors the current petrol price (like the Rs. 325 rate from the PSO website).
+ The AI Part: If petrol crosses a critical threshold, a red warning flashes: "Commute costs are too high for your students.
+ "The Result:
+ With one click, the AI generates a hybrid timetable (e.g., 3 days physical school, 2 days online at home). This instantly cuts transport costs by 40% for every family.
+ Tool 3: "Ask Ammi/Abba" Roman-Urdu Voice ToolHow it works:
+  Many struggling parents cannot read English or use complex apps. 
+ Your app has one giant microphone button.
+ The AI Part: A mother taps the mic and speaks naturally in Urdu: "Petrol bohot mehenga hai, bache ko school kaise bheju?
+ "The Result: The Alibaba Qwen AI processes her voice and speaks back a helpful, localized carpool or walking group solution entirely in Roman-Urdu audio.

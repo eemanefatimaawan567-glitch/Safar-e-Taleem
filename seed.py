@@ -66,6 +66,7 @@ DEMO_USERS = [
         "longitude": 73.1543,
         "children_count": 2,
         "school_name": "Beaconhouse Bahria Town",
+        "has_smart_device": True,
     },
     {
         "name": "Hassan Ali",
@@ -79,6 +80,7 @@ DEMO_USERS = [
         "longitude": 73.1555,
         "children_count": 1,
         "school_name": "Beaconhouse Bahria Town",
+        "has_smart_device": False,
     },
     {
         "name": "Sana Ahmed",
@@ -92,6 +94,7 @@ DEMO_USERS = [
         "longitude": 73.1530,
         "children_count": 3,
         "school_name": "Beaconhouse Bahria Town",
+        "has_smart_device": False,
     },
 
     # G-11 Islamabad — 2 families
@@ -107,6 +110,7 @@ DEMO_USERS = [
         "longitude": 72.9744,
         "children_count": 2,
         "school_name": "City School G-11",
+        "has_smart_device": True,
     },
     {
         "name": "Fatima Bibi",
@@ -120,6 +124,7 @@ DEMO_USERS = [
         "longitude": 72.9760,
         "children_count": 1,
         "school_name": "City School G-11",
+        "has_smart_device": False,
     },
 
     # F-8 Islamabad — 2 families
@@ -135,6 +140,7 @@ DEMO_USERS = [
         "longitude": 73.0400,
         "children_count": 2,
         "school_name": "Roots Millennium F-8",
+        "has_smart_device": False,
     },
     {
         "name": "Hira Noor",
@@ -148,6 +154,7 @@ DEMO_USERS = [
         "longitude": 73.0420,
         "children_count": 1,
         "school_name": "Roots Millennium F-8",
+        "has_smart_device": True,
     },
 
     # Satellite Town Rwp — 1 family
@@ -163,6 +170,7 @@ DEMO_USERS = [
         "longitude": 73.0426,
         "children_count": 2,
         "school_name": "Allied School Satellite Town",
+        "has_smart_device": False,
     },
 
     # DHA Phase 2 — 1 family
@@ -178,6 +186,7 @@ DEMO_USERS = [
         "longitude": 73.0900,
         "children_count": 3,
         "school_name": "LGS DHA Phase 2",
+        "has_smart_device": True,
     },
 
     # School Principal — 1
@@ -224,6 +233,7 @@ def seed():
                 longitude=u["longitude"],
                 children_count=u["children_count"],
                 school_name=u["school_name"],
+                has_smart_device=u.get("has_smart_device", True),
             )
             db.session.add(new_user)
 

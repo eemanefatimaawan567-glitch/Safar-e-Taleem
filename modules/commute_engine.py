@@ -229,4 +229,69 @@ def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
 
     return results
 
-    return clusters
+
+# ---------------------------------------------------------
+# MOHALLAH STUDY PODS — device-owner / non-owner matching
+# ---------------------------------------------------------
+
+MAX_STUDY_POD_DISTANCE_KM = 1.0
+MAX_STUDY_POD_SIZE = 3  # non-owners per device-owning host
+
+
+def form_study_pods(families, max_distance_km=MAX_STUDY_POD_DISTANCE_KM, max_pod_size=MAX_STUDY_POD_SIZE):
+    """
+    Reuses the same proximity logic as the commute clustering, but matches on
+    device access instead of walking distance: each family with a smartphone
+    or laptop ("owner") hosts up to `max_pod_size` nearby families without one
+    ("non-owners"), so kids can share a single screen for online/hybrid days.
+
+    Args:
+        families: list of User objects with .has_smart_device, .latitude, .longitude
+        max_distance_km: how far a non-owner can be from their host and still be matched
+        max_pod_size: max number of non-owner families per host
+
+    Returns:
+        (pods, unmatched) where:
+          pods: list of dicts:
+            {
+                'owner': User,
+                'members': [User, ...],       # non-owner families assigned to this host
+                'distances_km': [float, ...], # matching order to members
+                'avg_distance_km': float,
+            }
+          unmatched: list of User (non-owners with no eligible host nearby —
+                     these are the families who need Offline Learning Packets instead)
+    """
+    owners = sorted(
+        [f for f in families if f.has_smart_device and f.latitude and f.longitude],
+        key=lambda u: u.id,
+    )
+    non_owners = [f for f in families if not f.has_smart_device and f.latitude and f.longitude]
+
+    pods = []
+    assigned_ids = set()
+
+    for owner in owners:
+        candidates = []
+        for n in non_owners:
+            if n.id in assigned_ids:
+                continue
+            d = distance_km(owner.latitude, owner.longitude, n.latitude, n.longitude)
+            if d <= max_distance_km:
+                candidates.append((d, n))
+
+        candidates.sort(key=lambda x: x[0])
+        chosen = candidates[:max_pod_size]
+
+        if chosen:
+            for _, n in chosen:
+                assigned_ids.add(n.id)
+            pods.append({
+                'owner': owner,
+                'members': [n for _, n in chosen],
+                'distances_km': [round(d, 2) for d, _ in chosen],
+                'avg_distance_km': round(sum(d for d, _ in chosen) / len(chosen), 2),
+            })
+
+    unmatched = [n for n in non_owners if n.id not in assigned_ids]
+    return pods, unmatched

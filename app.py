@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from modules.petrol_price import get_petrol_price as fetch_live_petrol_price
-from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, distance_km, cluster_families
+from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, distance_km, cluster_families, form_study_pods
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -33,6 +33,7 @@ class User(db.Model):
     longitude = db.Column(db.Float, nullable=True)
     children_count = db.Column(db.Integer, default=1)
     school_name = db.Column(db.String(150), default='')
+    has_smart_device = db.Column(db.Boolean, default=True)  # for Mohallah Study Pods matching
 
 
 class PetrolPrice(db.Model):
@@ -149,6 +150,34 @@ def get_pod_coordinator(user):
         return None
     return min([user] + pod_members, key=lambda u: u.id)
 
+def get_my_study_pod(user):
+    """
+    Runs the Mohallah Study Pod matching across all parent families and returns
+    this user's own pod status:
+        {'status': 'hosting', 'members': [User, ...]}                — user is the device owner/host
+        {'status': 'assigned', 'host': User, 'distance_km': float}   — user is matched to a host
+        {'status': 'unmatched'}                                       — no device, no host nearby
+        {'status': 'has_device'}                                      — user has a device, not hosting anyone
+    """
+    if not user or user.role != 'parent':
+        return None
+
+    all_parents = User.query.filter_by(role='parent').all()
+    pods, unmatched = form_study_pods(all_parents)
+
+    if user.has_smart_device:
+        for pod in pods:
+            if pod['owner'].id == user.id:
+                return {'status': 'hosting', 'members': pod['members']}
+        return {'status': 'has_device'}
+
+    for pod in pods:
+        for i, m in enumerate(pod['members']):
+            if m.id == user.id:
+                return {'status': 'assigned', 'host': pod['owner'], 'distance_km': pod['distances_km'][i]}
+
+    return {'status': 'unmatched'}
+
 # Helper function for Pakistani CNIC validation (XXXXX-XXXXXXX-X)
 def validate_cnic(cnic_str):
     pattern = r"^\d{5}-\d{7}-\d{1}$"
@@ -259,7 +288,8 @@ def register():
             latitude=request.form.get('latitude') or None,
             longitude=request.form.get('longitude') or None,
             children_count=int(request.form.get('children_count', 1)),
-            school_name=request.form.get('school_name', '')
+            school_name=request.form.get('school_name', ''),
+            has_smart_device=(request.form.get('has_smart_device') == 'yes')
         )
         db.session.add(new_user)
         db.session.commit()
@@ -356,6 +386,9 @@ def parent_dashboard():
     is_coordinator = bool(coordinator and coordinator.id == user.id)
     coordinator_name = coordinator.name if coordinator else None
 
+    # Mohallah Study Pod: device-sharing match for hybrid/online days
+    study_pod = get_my_study_pod(user)
+
     return render_template(
         'parent.html',
         user=user,
@@ -373,6 +406,7 @@ def parent_dashboard():
         is_coordinator=is_coordinator,
         coordinator_name=coordinator_name,
         coordinator_id=coordinator.id if coordinator else None,
+        study_pod=study_pod,
     )
 
 @app.route('/principal')
@@ -402,6 +436,13 @@ def principal_dashboard():
         total_costs.append(calculate_fuel_cost(d * 2, petrol['price']))
     avg_monthly_cost = round(sum(total_costs) / len(total_costs)) if total_costs else 0
 
+    # Mohallah Study Pods: match device-owning families with nearby families
+    # who don't have one, for shared-screen learning on hybrid/online days.
+    study_pods, unmatched_families = form_study_pods(all_parents) if all_parents else ([], [])
+    device_owner_count = len([u for u in all_parents if u.has_smart_device])
+    no_device_count = total_parents - device_owner_count
+    families_covered_by_pods = sum(len(p['members']) for p in study_pods)
+
     return render_template(
         'principal.html',
         user=user,
@@ -417,6 +458,11 @@ def principal_dashboard():
         carpool_groups=carpool_groups,
         solo_count=solo_count,
         total_groups=len(clusters),
+        study_pods=study_pods,
+        unmatched_families=unmatched_families,
+        device_owner_count=device_owner_count,
+        no_device_count=no_device_count,
+        families_covered_by_pods=families_covered_by_pods,
     )
 
 

@@ -22,6 +22,7 @@
             <a href="#petrol-monitor" class="nav-item active" onclick="document.querySelector('.petrol-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-house"></i> Overview</a>
             <a href="#walking-group" class="nav-item" onclick="document.querySelector('.panel-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-users"></i> Walking Groups</a>
             <a href="#live-location" class="nav-item" onclick="document.getElementById('live-location').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-location-crosshairs"></i> Live Tracking</a>
+            <a href="#study-pod" class="nav-item" onclick="document.getElementById('study-pod').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-house-laptop"></i> Study Pod</a>
             <a href="#" class="nav-item" onclick="toggleRobotAssistant(); return false;"><i class="fa-solid fa-robot"></i> Ask Ammi/Abba</a>
             <a href="#" class="nav-item" onclick="sendMessage(); return false;"><i class="fa-solid fa-piggy-bank"></i> Fuel Savings</a>
         </nav>
@@ -194,6 +195,75 @@
             <div id="location-map" style="width: 100%; height: 320px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;"></div>
 
             <div id="pod-location-list"></div>
+        </div>
+
+        <div class="panel-card" id="study-pod" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-house-laptop"></i> Mohallah Study Pod</p>
+                {% if study_pod %}
+                    {% if study_pod.status == 'hosting' %}
+                        <span class="badge" style="background-color: #d1fae5; color: #059669;">You're Hosting</span>
+                    {% elif study_pod.status == 'assigned' %}
+                        <span class="badge" style="background-color: #dbeafe; color: #1e40af;">Matched</span>
+                    {% elif study_pod.status == 'has_device' %}
+                        <span class="badge">Have Device</span>
+                    {% else %}
+                        <span class="badge" style="background-color: #fef3c7; color: #92400e;">No Match Yet</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                On hybrid or online days, families with a smartphone or laptop host up to 3 nearby families without one,
+                so kids can share a single screen safely within walking distance.
+            </p>
+
+            {% if study_pod and study_pod.status == 'hosting' %}
+                <div style="padding: 14px; background: #f0fdf4; border-radius: 12px; border: 1px solid #bbf7d0;">
+                    <p style="margin: 0 0 10px 0; font-size: 0.875rem; font-weight: 600; color: #065f46;">
+                        <i class="fa-solid fa-house"></i> You're hosting {{ study_pod.members|length }} nearby famil{{ 'ies' if study_pod.members|length > 1 else 'y' }} at your home:
+                    </p>
+                    {% for m in study_pod.members %}
+                    <div class="group-row" style="background: #fff;">
+                        <div class="group-person">
+                            <i class="fa-solid fa-child" style="color: #059669;"></i>
+                            <div>
+                                <div class="person-name">{{ m.name }}</div>
+                                <div class="person-role">{{ m.children_count }} kid{{ 's' if m.children_count > 1 }} • {{ m.neighborhood }}</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ m.neighborhood }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            {% elif study_pod and study_pod.status == 'assigned' %}
+                <div style="padding: 14px; background: #eff6ff; border-radius: 12px; border: 1px solid #bfdbfe;">
+                    <p style="margin: 0; font-size: 0.875rem; line-height: 1.6; color: #1e3a8a;">
+                        <i class="fa-solid fa-house-chimney"></i> Your child is matched to study at
+                        <strong>{{ study_pod.host.name }}</strong>'s home ({{ study_pod.distance_km }} km away)
+                        on hybrid/online days. Reach out to coordinate timing.
+                    </p>
+                </div>
+
+            {% elif study_pod and study_pod.status == 'has_device' %}
+                <div style="padding: 14px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    <i class="fa-solid fa-check" style="color: #059669;"></i>
+                    You have a device at home. No nearby families currently need a host — thank you for registering as a potential one!
+                </div>
+
+            {% elif study_pod and study_pod.status == 'unmatched' %}
+                <div style="padding: 14px; background: #fffbeb; border-radius: 12px; border: 1px solid #fde68a;">
+                    <p style="margin: 0; font-size: 0.875rem; line-height: 1.6; color: #92400e;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> No device-owning family was found within walking distance yet.
+                        The school will provide an Offline Learning Packet for hybrid/online days until a match is found.
+                    </p>
+                </div>
+
+            {% else %}
+                <div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    Study Pod matching isn't available for your account.
+                </div>
+            {% endif %}
         </div>
 
     </main>

@@ -34,7 +34,7 @@ def _get_qwen_client():
             from openai import OpenAI
             _qwen_client = OpenAI(
                 api_key=DASHSCOPE_API_KEY,
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             )
         except Exception as e:
             print(f"[Qwen] Failed to init client: {e}")

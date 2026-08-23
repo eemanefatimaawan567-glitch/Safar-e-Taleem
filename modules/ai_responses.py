@@ -22,6 +22,10 @@ load_dotenv()
 # -----------------------------------------------------------------
 
 DASHSCOPE_API_KEY = os.getenv('DASHSCOPE_API_KEY', '')
+# Some Model Studio keys are tied to a workspace-specific host (shown as
+# "OpenAI Compatible Endpoint" when the key was created) rather than the
+# shared international endpoint. Override via .env if yours is different.
+DASHSCOPE_BASE_URL = os.getenv('DASHSCOPE_BASE_URL', 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1')
 _qwen_client = None
 
 def _get_qwen_client():
@@ -34,7 +38,7 @@ def _get_qwen_client():
             from openai import OpenAI
             _qwen_client = OpenAI(
                 api_key=DASHSCOPE_API_KEY,
-                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                base_url=DASHSCOPE_BASE_URL,
             )
         except Exception as e:
             print(f"[Qwen] Failed to init client: {e}")

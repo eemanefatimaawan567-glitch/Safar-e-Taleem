@@ -560,10 +560,10 @@ def ask_ammi_abba():
     # Fetch live petrol data (with DB tracking)
     petrol = get_tracked_petrol_price()
 
-    # Generate response (Qwen AI if key set, else rule-based fallback)
-    response_text = generate_response(user_query, petrol, user_context, db_context)
+    # Generate response (Qwen AI if key set and reachable, else rule-based fallback)
+    response_text, response_source = generate_response(user_query, petrol, user_context, db_context)
 
-    return jsonify({'text_response': response_text, 'source': 'ai'})
+    return jsonify({'text_response': response_text, 'source': response_source})
 
 
 # ---------------------------------------------------------

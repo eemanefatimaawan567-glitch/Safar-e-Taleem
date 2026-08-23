@@ -6,6 +6,7 @@
 let isRecording = false;
 let speechRecognition = null;
 let _cachedVoice = null;
+let _cachedUrduVoice = null;
 
 // Pick the best English voice (warm female preferred, always available)
 function _pickEnglishVoice(voices) {
@@ -15,10 +16,22 @@ function _pickEnglishVoice(voices) {
            null;
 }
 
+// Pick an Urdu voice if the browser/OS has one installed (Chrome on Android
+// and some desktop setups do; many don't). Roman-Urdu text read by an actual
+// Urdu voice engine sounds far more natural than an English voice guessing
+// at the pronunciation.
+function _pickUrduVoice(voices) {
+    return voices.find(v => v.lang === 'ur-PK') ||
+           voices.find(v => v.lang && v.lang.startsWith('ur')) ||
+           voices.find(v => /urdu/i.test(v.name)) ||
+           null;
+}
+
 // Preload voices
 if (window.speechSynthesis) {
     speechSynthesis.onvoiceschanged = () => {
         _cachedVoice = _pickEnglishVoice(speechSynthesis.getVoices());
+        _cachedUrduVoice = _pickUrduVoice(speechSynthesis.getVoices());
     };
     if (speechSynthesis.getVoices().length > 0) {
         speechSynthesis.onvoiceschanged();
@@ -114,7 +127,7 @@ async function sendMessage() {
         });
         const data = await res.json();
         appendMessage(data.text_response, 'bot');
-        speakResponse(data.text_response);
+        speakResponse(data.text_response, data.source);
     } catch (e) {
         appendMessage("Sorry, I couldn't connect right now. Please try again.", 'bot');
     }
@@ -126,7 +139,7 @@ function handleKeyPress(e) {
 
 /* ---------- VOICE: STT (Speech Recognition) + TTS (Speech Synthesis) ---------- */
 
-function speakResponse(text) {
+function speakResponse(text, source) {
     if (!window.speechSynthesis) return;
 
     // Clean text for speech
@@ -138,18 +151,28 @@ function speakResponse(text) {
         .replace(/(\d+)%/g, '$1 percent')
         .trim();
 
-    // Ensure voice loaded
-    if (!_cachedVoice) {
-        _cachedVoice = _pickEnglishVoice(speechSynthesis.getVoices());
-    }
+    // Ensure voices loaded
+    if (!_cachedVoice) _cachedVoice = _pickEnglishVoice(speechSynthesis.getVoices());
+    if (!_cachedUrduVoice) _cachedUrduVoice = _pickUrduVoice(speechSynthesis.getVoices());
 
     speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.90;
+
+    // Qwen responses are Roman-Urdu — an actual Urdu voice (if the browser
+    // has one) pronounces this far more naturally than an English voice
+    // guessing at it. Rule-based fallback text is plain English, so keep
+    // the English voice for that.
+    if (source === 'qwen' && _cachedUrduVoice) {
+        utterance.voice = _cachedUrduVoice;
+        utterance.lang = _cachedUrduVoice.lang;
+        utterance.rate = 0.85;
+    } else {
+        utterance.lang = 'en-US';
+        utterance.rate = source === 'qwen' ? 0.80 : 0.90; // slower helps English voices with Roman-Urdu words
+        if (_cachedVoice) utterance.voice = _cachedVoice;
+    }
     utterance.pitch = 1.0;
-    if (_cachedVoice) utterance.voice = _cachedVoice;
 
     speechSynthesis.speak(utterance);
 }
@@ -162,11 +185,13 @@ function showVoiceDiagnostic() {
         return;
     }
     const selected = _cachedVoice ? _cachedVoice.name + ' (' + _cachedVoice.lang + ')' : 'None';
+    const urdu = _cachedUrduVoice ? _cachedUrduVoice.name + ' (' + _cachedUrduVoice.lang + ')' : 'None found on this device';
     appendMessage(
         'Voice Info:\n' +
         'Total voices available: ' + voices.length + '\n' +
-        'Currently using: ' + selected + '\n\n' +
-        'All voices: ' + voices.slice(0, 10).map(v => v.name).join(', ') + (voices.length > 10 ? '...' : ''),
+        'English voice in use: ' + selected + '\n' +
+        'Urdu voice found: ' + urdu + '\n\n' +
+        'All voices: ' + voices.slice(0, 10).map(v => v.name + ' (' + v.lang + ')').join(', ') + (voices.length > 10 ? '...' : ''),
         'bot'
     );
 }
@@ -224,7 +249,7 @@ function recordVoiceCommand() {
             });
             const data = await res.json();
             appendMessage(data.text_response, 'bot');
-            speakResponse(data.text_response);
+            speakResponse(data.text_response, data.source);
         } catch (e) {
             appendMessage('Sorry, could not process. Please try typing instead.', 'bot');
         }

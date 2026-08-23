@@ -60,6 +60,11 @@ RULES:
 5. Never use complex English jargon mid-sentence.
 6. Use numbers as digits (331, 2500) not words.
 7. Address the user by their first name if provided.
+8. ACCURACY IS CRITICAL: only use the numbers and facts given to you in "Current context" below.
+   Never invent, estimate, or guess a petrol price, distance, family count, or savings figure that
+   isn't explicitly provided. If the context doesn't have what's needed to answer precisely, say so
+   honestly in Roman-Urdu rather than making up a number.
+9. Do not contradict the context (e.g. don't say "no families nearby" if nearby_count > 0).
 
 CONTEXT you have:
 - Petrol price and whether it went up/down
@@ -82,9 +87,14 @@ EXAMPLE RESPONSES:
 - "School 2 km door hai. Akele gaari le jao toh 4000 rupay mahina, padosiyon ke saath aadha."
 """
 
+# Try these in order — some Model Studio workspaces only expose a subset of
+# Qwen models, so if the first choice 404s/400s we retry with the next one
+# instead of silently dropping to the (English) rule-based fallback.
+QWEN_MODEL_CANDIDATES = ["qwen-turbo", "qwen-plus", "qwen-flash", "qwen-max"]
+
 
 def _qwen_response(query, user_context, db_context, petrol):
-    """Call Qwen API for a natural Roman-Urdu response."""
+    """Call Qwen API for a natural Roman-Urdu response. Returns None on total failure."""
     client = _get_qwen_client()
     if client is None:
         return None
@@ -105,25 +115,34 @@ def _qwen_response(query, user_context, db_context, petrol):
         f"Petrol: {price} Rs/L ({direction})\n"
     )
 
-    try:
-        response = client.chat.completions.create(
-            model="qwen-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "system", "content": f"Current context:\n{context_msg}"},
-                {"role": "user", "content": query},
-            ],
-            max_tokens=150,
-            temperature=0.7,
-            timeout=10,
-        )
-        answer = response.choices[0].message.content.strip()
-        # Clean up any markdown or extra formatting
-        answer = answer.replace('**', '').replace('*', '').replace('```', '')
-        return answer
-    except Exception as e:
-        print(f"[Qwen] API error: {e}")
-        return None
+    last_error = None
+    for model_name in QWEN_MODEL_CANDIDATES:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": f"Current context:\n{context_msg}"},
+                    {"role": "user", "content": query},
+                ],
+                max_tokens=150,
+                temperature=0.7,
+                timeout=10,
+            )
+            answer = response.choices[0].message.content.strip()
+            # Clean up any markdown or extra formatting
+            answer = answer.replace('**', '').replace('*', '').replace('```', '')
+            if model_name != QWEN_MODEL_CANDIDATES[0]:
+                print(f"[Qwen] Note: '{QWEN_MODEL_CANDIDATES[0]}' didn't work, succeeded with '{model_name}' instead.")
+            return answer
+        except Exception as e:
+            last_error = e
+            continue
+
+    # Every candidate model failed — log the real reason so it can be fixed,
+    # instead of silently vanishing into the English fallback.
+    print(f"[Qwen] API error — all models failed. Last error: {last_error}")
+    return None
 
 
 # -----------------------------------------------------------------
@@ -369,6 +388,9 @@ def generate_response(query, petrol, user_context=None, db_context=None):
     Flow:
     1. Try Qwen AI (if API key configured) → natural Roman-Urdu
     2. Fall back to rule-based engine → English (reliable TTS)
+
+    Returns (text, source) where source is 'qwen' or 'fallback', so callers
+    can tell the difference instead of assuming Qwen always succeeded.
     """
     if not user_context:
         user_context = {}
@@ -378,7 +400,7 @@ def generate_response(query, petrol, user_context=None, db_context=None):
     # Try Qwen AI first
     qwen_answer = _qwen_response(query, user_context, db_context, petrol)
     if qwen_answer:
-        return qwen_answer
+        return qwen_answer, 'qwen'
 
     # Fallback to rule-based
-    return _rule_based_fallback(query, petrol, user_context, db_context)
+    return _rule_based_fallback(query, petrol, user_context, db_context), 'fallback'

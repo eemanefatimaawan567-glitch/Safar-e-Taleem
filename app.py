@@ -1,23 +1,34 @@
 import os
 import re
+<<<<<<< HEAD
 import secrets
 import logging
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort
+=======
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from modules.petrol_price import get_petrol_price as fetch_live_petrol_price
 from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, distance_km, cluster_families, form_study_pods
+<<<<<<< HEAD
 from modules.curriculum import get_pack, get_all_packs, CURRICULUM_PACKS
 from modules.notification import send_notification
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'safar-e-taleem-dev-key-change-in-prod')
+<<<<<<< HEAD
 
 # Logging setup — warnings and above
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('safar-e-taleem')
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -79,6 +90,7 @@ class LocationShare(db.Model):
     is_sos = db.Column(db.Boolean, default=False)
     sos_triggered_at = db.Column(db.DateTime, nullable=True)
 
+<<<<<<< HEAD
 class NotificationLog(db.Model):
     """Tracks WhatsApp/SMS/IVR curriculum delivery to families without devices."""
     id = db.Column(db.Integer, primary_key=True)
@@ -93,23 +105,31 @@ class NotificationLog(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 # Initialize Database
 with app.app_context():
     db.create_all()
     # Seed initial petrol price if table is empty
     if PetrolPrice.query.count() == 0:
+<<<<<<< HEAD
         db.session.add(PetrolPrice(price=343.00, source='seed'))
         db.session.commit()
     # Auto-seed demo users on first run so demo-login always works
     if not User.query.filter_by(email='ayesha@demo.com').first():
         from seed import seed as _run_seed
         _run_seed()
+=======
+        db.session.add(PetrolPrice(price=325.43, source='seed'))
+        db.session.commit()
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
 
 def get_tracked_petrol_price():
     """
     Fetches live petrol price, compares with the last stored DB price,
     saves the new price if changed, and returns full data dict.
+<<<<<<< HEAD
     If the last record is a demo spike/reset, uses that instead of live data
     so the hackathon demo spike stays stable across polls.
     """
@@ -134,6 +154,21 @@ def get_tracked_petrol_price():
             new_entry = PetrolPrice(price=current, source=source)
             db.session.add(new_entry)
             db.session.commit()
+=======
+    """
+    live = fetch_live_petrol_price()
+    current = live['price']
+
+    # Get the most recent stored price
+    last_record = PetrolPrice.query.order_by(PetrolPrice.checked_at.desc()).first()
+    previous = last_record.price if last_record else current
+
+    # Save new price if it changed (or if no record yet)
+    if last_record is None or abs(current - last_record.price) > 0.01:
+        new_entry = PetrolPrice(price=current, source=live.get('source', 'live'))
+        db.session.add(new_entry)
+        db.session.commit()
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
     difference = round(current - previous, 2)
     direction = 'increase' if difference > 0 else ('decrease' if difference < 0 else 'unchanged')
@@ -147,7 +182,11 @@ def get_tracked_petrol_price():
         'percentage_change': percentage,
         'direction': direction,
         'alert': (direction == 'increase' and percentage >= 2),
+<<<<<<< HEAD
         'source': source,
+=======
+        'source': live.get('source', 'Live PSO/Shell Web Source'),
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         'checked_at': datetime.now().isoformat()
     }
 
@@ -236,6 +275,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+<<<<<<< HEAD
 
 # ---------------------------------------------------------
 # CSRF PROTECTION — lightweight session-token based
@@ -268,6 +308,8 @@ def csrf_protect(f):
         return f(*args, **kwargs)
     return decorated
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 # ---------------------------------------------------------
 # PUBLIC & AUTH ROUTES
 # ---------------------------------------------------------
@@ -305,9 +347,13 @@ def index():
     )
 
 @app.route('/login', methods=['GET', 'POST'])
+<<<<<<< HEAD
 @csrf_protect
 def login():
     csrf_token = generate_csrf_token()
+=======
+def login():
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -322,6 +368,7 @@ def login():
                 return redirect(url_for('principal_dashboard'))
             return redirect(url_for('parent_dashboard'))
         else:
+<<<<<<< HEAD
             return render_template('login.html', error="Invalid email or password.", csrf_token=csrf_token)
 
     return render_template('login.html', csrf_token=csrf_token)
@@ -330,6 +377,14 @@ def login():
 @csrf_protect
 def register():
     csrf_token = generate_csrf_token()
+=======
+            return render_template('login.html', error="Invalid email or password.")
+
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
@@ -339,6 +394,7 @@ def register():
 
         # CNIC Validation Check
         if not validate_cnic(cnic):
+<<<<<<< HEAD
             return render_template('register.html', error="Invalid CNIC format. Format must be 35201-1234567-1.", csrf_token=csrf_token)
 
         # Check existing user
@@ -347,6 +403,16 @@ def register():
         
         if User.query.filter_by(cnic=cnic).first():
             return render_template('register.html', error="CNIC is already registered.", csrf_token=csrf_token)
+=======
+            return render_template('register.html', error="Invalid CNIC format. Format must be 35201-1234567-1.")
+
+        # Check existing user
+        if User.query.filter_by(email=email).first():
+            return render_template('register.html', error="Email is already registered.")
+        
+        if User.query.filter_by(cnic=cnic).first():
+            return render_template('register.html', error="CNIC is already registered.")
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
         # Create user
         new_user = User(
@@ -375,7 +441,11 @@ def register():
             return redirect(url_for('principal_dashboard'))
         return redirect(url_for('parent_dashboard'))
 
+<<<<<<< HEAD
     return render_template('register.html', csrf_token=csrf_token)
+=======
+    return render_template('register.html')
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
 @app.route('/demo-login/<role>')
 def demo_login(role):
@@ -563,6 +633,7 @@ def get_petrol_history():
     ]
     return jsonify(history)
 
+<<<<<<< HEAD
 
 @app.route('/api/demo/petrol-spike', methods=['POST'])
 def demo_petrol_spike():
@@ -610,6 +681,8 @@ def demo_petrol_reset():
         'message': f'Petrol price reset to Rs {normal_price}/L (demo mode)',
     })
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 @app.route('/api/ask-ammi-abba', methods=['POST'])
 def ask_ammi_abba():
     from modules.ai_responses import generate_response
@@ -657,6 +730,7 @@ def ask_ammi_abba():
                             'nearby_count': len(nearby_members),
                             'nearby_names': [m.name for m in nearby_members],
                             'cluster_type': c['transport_type'],
+<<<<<<< HEAD
                             'cluster_distance': c['avg_distance_km'] if c['avg_distance_km'] > 0 else max(c.get('max_distance_km', 1.0), 0.5),
                         }
                         break
@@ -666,18 +740,34 @@ def ask_ammi_abba():
                     nearest_km = 1.0
                     if others and user.latitude and user.longitude:
                         nearest_km = min(distance_km(user.latitude, user.longitude, u.latitude, u.longitude) for u in others if u.latitude and u.longitude) or 1.0
+=======
+                            'cluster_distance': c['avg_distance_km'] if c['avg_distance_km'] > 0 else 2.5,
+                        }
+                        break
+                else:
+                    # User is noise / no cluster
+                    others = [u for u in neighborhood_parents if u.id != user.id]
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                     db_context = {
                         'nearby_count': len(others),
                         'nearby_names': [u.name for u in others],
                         'cluster_type': 'Individual Transport',
+<<<<<<< HEAD
                         'cluster_distance': round(max(nearest_km, 0.3), 1),
+=======
+                        'cluster_distance': 2.5,
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                     }
             else:
                 db_context = {
                     'nearby_count': 0,
                     'nearby_names': [],
                     'cluster_type': 'Individual Transport',
+<<<<<<< HEAD
                     'cluster_distance': 1.0,
+=======
+                    'cluster_distance': 2.5,
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                 }
 
     # Fetch live petrol data (with DB tracking)
@@ -902,6 +992,7 @@ def location_pod():
     return jsonify({'pod': results, 'stale_after_seconds': STALE_AFTER_SECONDS})
 
 
+<<<<<<< HEAD
 @app.route('/api/pod/notify', methods=['POST'])
 @login_required
 def notify_pod():
@@ -1111,9 +1202,15 @@ def notification_log():
     ])
 
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 # ---------------------------------------------------------
 # RUN SERVER
 # ---------------------------------------------------------
 if __name__ == '__main__':
+<<<<<<< HEAD
     debug_mode = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
     app.run(debug=debug_mode, port=5001)
+=======
+    app.run(debug=True, port=5001)
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21

@@ -3,7 +3,11 @@ import numpy as np
 from math import radians, sin, cos, sqrt, atan2
 
 
+<<<<<<< HEAD
 PETROL_PRICE = 343.00  # fallback; live price passed as param
+=======
+PETROL_PRICE = 331.20  # fallback; live price passed as param
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 AVERAGE_MILEAGE = 15
 SCHOOL_DAYS = 22
 

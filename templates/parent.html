@@ -31,7 +31,11 @@
 
     <main class="main-content">
 
+<<<<<<< HEAD
         <div class="topbar anim-fade-up">
+=======
+        <div class="topbar">
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
             <div>
                 <div class="eyebrow">PARENT DASHBOARD</div>
                 <h1>Welcome back, {{ user.name if user and user.name else 'Parent' }}</h1>
@@ -173,6 +177,7 @@
 
         </div>
 
+<<<<<<< HEAD
         {% if is_coordinator and nearby_parents %}
         <!-- COORDINATOR ACTIONS — only visible to group coordinator -->
         <div class="panel-card" style="margin-bottom: 20px; border-left: 6px solid #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);">
@@ -195,6 +200,8 @@
         </div>
         {% endif %}
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         <div class="panel-card" id="live-location" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-location-crosshairs"></i> Live Commute Tracking</p>
@@ -345,6 +352,7 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<<<<<<< HEAD
 <script>
 // --- COORDINATOR: Send pod alert ---
 async function sendPodAlert() {
@@ -384,6 +392,8 @@ async function sendPodAlert() {
     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Alert';
 }
 </script>
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
 </body>
 </html>

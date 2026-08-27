@@ -18,6 +18,7 @@
     let pingTimer = null;
     let pollTimer = null;
     let simulatedPos = null; // {lat, lon} used when real GPS isn't available
+<<<<<<< HEAD
     let routeStep = 0;         // current index along the mock walking route
 
     // ---------------------------------------------------------
@@ -37,6 +38,8 @@
         { lat: 33.6890, lon: 73.0458 },  // School parking area
         { lat: 33.6895, lon: 73.0456 },  // Beaconhouse Bahria Town — ARRIVED
     ];
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
     function initMap() {
         const mapEl = document.getElementById('location-map');
@@ -172,6 +175,7 @@
     }
 
     function simulatePosition() {
+<<<<<<< HEAD
         // Use hardcoded walking route waypoints instead of random jitter
         // so judges see a marker that actually moves along a real road.
         const startLat = (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.latitude) || MOCK_ROUTE[0].lat;
@@ -188,6 +192,18 @@
             simulatedPos = {
                 latitude: MOCK_ROUTE[MOCK_ROUTE.length - 1].lat,
                 longitude: MOCK_ROUTE[MOCK_ROUTE.length - 1].lon,
+=======
+        if (!simulatedPos) {
+            simulatedPos = {
+                latitude: (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.latitude) || 33.6844,
+                longitude: (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.longitude) || 73.0479,
+            };
+        } else {
+            // small jitter to look like a slow walk toward school
+            simulatedPos = {
+                latitude: simulatedPos.latitude + (Math.random() - 0.4) * 0.0006,
+                longitude: simulatedPos.longitude + (Math.random() - 0.4) * 0.0006,
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
             };
         }
         return simulatedPos;
@@ -233,7 +249,10 @@
             sharing = false;
             clearInterval(pingTimer);
             simulatedPos = null;
+<<<<<<< HEAD
             routeStep = 0;  // reset walking route for next share
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
             btn.innerHTML = '<i class="fa-solid fa-location-arrow"></i> Start Sharing';
             btn.classList.remove('btn-sos');

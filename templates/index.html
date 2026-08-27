@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>Safar-e-Taleem | Smart School Transport for Pakistan</title>
+=======
+    <title>Safar-e-Taleem | Smart School Transport</title>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,7 +15,10 @@
 </head>
 <body>
 
+<<<<<<< HEAD
 <!-- NAVIGATION -->
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 <header class="navbar">
     <div class="nav-inner">
         <div class="brand-logo">
@@ -25,6 +32,7 @@
     </div>
 </header>
 
+<<<<<<< HEAD
 <!-- HERO -->
 <section class="hero">
     <div class="hero-container">
@@ -34,6 +42,17 @@
             <p class="hero-text">
                 Safar-e-Taleem helps Pakistani families cut school transport costs through
                 AI-clustered walking groups, fuel-aware hybrid scheduling, and Roman-Urdu voice assistance.
+=======
+<section class="hero">
+    <div class="hero-container">
+        
+        <div class="hero-content">
+            <div class="eyebrow">AI-POWERED SCHOOL MOBILITY</div>
+            <h1>Making every school <span>journey smarter.</span></h1>
+            <p class="hero-text">
+                Safar-e-Taleem helps families reduce school transport costs through intelligent
+                walking groups, shared carpools, and fuel-aware recommendations.
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
             </p>
             <div class="hero-actions">
                 <a href="/demo-login/parent" class="btn btn-primary btn-lg"><i class="fa-solid fa-user"></i> Try Demo: Parent</a>
@@ -41,6 +60,7 @@
             </div>
         </div>
 
+<<<<<<< HEAD
         <!-- Live Dashboard Preview -->
         <div class="dashboard-preview">
             <div class="preview-top">
@@ -50,15 +70,31 @@
             <div class="preview-grid">
                 <div class="preview-card">
                     <div class="metric-label">Registered Families</div>
+=======
+        <div class="dashboard-preview">
+            <div class="preview-top">
+                <div class="preview-title"><i class="fa-solid fa-chart-line"></i> Safar-e-Taleem Overview</div>
+                <div class="live-status"><span class="pulse-dot"></span> SYSTEM ACTIVE</div>
+            </div>
+
+            <div class="preview-grid">
+                <div class="preview-card">
+                    <div class="metric-label">Registered families</div>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                     <div class="metric-value">{{ parent_count if parent_count else 0 }}</div>
                     <span class="badge">{{ total_students if total_students else 0 }} children</span>
                 </div>
                 <div class="preview-card">
+<<<<<<< HEAD
                     <div class="metric-label">Transport Groups</div>
+=======
+                    <div class="metric-label">Transport groups</div>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                     <div class="metric-value">{{ group_count if group_count else 0 }}</div>
                     <span class="badge">AI clustered</span>
                 </div>
                 <div class="preview-card">
+<<<<<<< HEAD
                     <div class="metric-label">Estimated Savings</div>
                     <div class="metric-value" style="color: var(--primary);">Rs {{ "{:,.0f}".format(total_savings) if total_savings else '0' }}</div>
                     <span class="badge">This month</span>
@@ -87,6 +123,28 @@
         <div>
             <div class="petrol-label">PSO Fuel Price Monitoring</div>
             <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '343' }} / L</div>
+=======
+                    <div class="metric-label">Estimated savings</div>
+                    <div class="metric-value">Rs {{ "{:,.0f}".format(total_savings) if total_savings else '0' }}</div>
+                    <span class="badge">This month</span>
+                </div>
+                <div class="preview-card">
+                    <div class="metric-label">Fuel monitoring</div>
+                    <div class="metric-value">LIVE</div>
+                    <span class="badge">Price monitored</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<section class="petrol-section">
+    <div class="petrol-card">
+        <div>
+            <div class="petrol-label">CURRENT PETROL PRICE</div>
+            <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '331.2' }} / L</div>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
             <div class="petrol-change">
                 {% if petrol_direction == 'increase' %}
                 <span class="live-dot" style="background-color: #ef4444;"></span>
@@ -105,6 +163,7 @@
     </div>
 </section>
 
+<<<<<<< HEAD
 <!-- FEATURES -->
 <section class="features-section">
     <div class="features-grid">
@@ -271,6 +330,11 @@
 
 <!-- FLOATING AI ASSISTANT -->
 <div class="floating-bot-container">
+=======
+<!-- SINGLE FLOATING ROBOT AI WIDGET -->
+<div class="floating-bot-container">
+
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     <div class="chat-popup" id="chat-popup">
         <div class="chat-header">
             <div class="chat-header-info">
@@ -282,11 +346,19 @@
             </div>
             <button class="chat-close-btn" onclick="toggleRobotAssistant()">&times;</button>
         </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         <div class="chat-body" id="chat-messages">
             <div class="message bot-message">
                 👋 Assalam-o-Alaikum! Main Safar-e-Taleem Assistant hoon. Type or tap the mic to ask how to save fuel costs!
             </div>
         </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         <div class="chat-footer">
             <input type="text" id="chat-input" placeholder="Type in Roman-Urdu or English..." onkeypress="handleKeyPress(event)">
             <button class="chat-mic-btn" id="index-mic-btn" onclick="recordVoiceCommand()" title="Voice Assistant">
@@ -297,15 +369,33 @@
             </button>
         </div>
     </div>
+<<<<<<< HEAD
     <div class="robot-speech-bubble" id="bot-bubble">
         👋 Ask Ammi/Abba how to reduce transport costs!
     </div>
+=======
+
+    <div class="robot-speech-bubble" id="bot-bubble">
+        👋 Ask Ammi/Abba how to reduce transport costs!
+    </div>
+
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     <div class="robot-avatar-wrapper" onclick="toggleRobotAssistant()">
         <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="Ask Ammi/Abba AI" class="robot-img">
         <div class="bot-status-badge"></div>
     </div>
+<<<<<<< HEAD
 </div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
+=======
+
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21

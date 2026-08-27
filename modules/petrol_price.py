@@ -1,8 +1,12 @@
+<<<<<<< HEAD
 import logging
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
+<<<<<<< HEAD
 logger = logging.getLogger('safar-e-taleem.petrol')
 DEFAULT_PRICE = 343.00  # Current Pakistan petrol price (updated Aug 2026)
 
@@ -10,6 +14,12 @@ def get_live_pso_price():
     """Scrapes current petrol price from Shell Pakistan station board.
     Returns (price, source) tuple so callers know if data is live or fallback.
     """
+=======
+DEFAULT_PRICE = 331.20  # Fallback price if internet fails during hackathon
+
+def get_live_pso_price():
+    """Scrapes current petrol price from Shell Pakistan station board."""
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     url = "https://www.shell.com.pk/shell-stations/shell-station-price-board.html"
     headers = {"User-Agent": "Mozilla/5.0"}
     
@@ -22,6 +32,7 @@ def get_live_pso_price():
                 cells = row.find_all(["td", "th"])
                 if cells and "Super" in cells[0].text:
                     price_text = cells[1].text.strip().replace("Rs.", "").replace("/Litre", "").strip()
+<<<<<<< HEAD
                     price = float(price_text)
                     return price, 'Live PSO/Shell Web Source'
             # Page loaded but price element not found — layout may have changed
@@ -42,11 +53,26 @@ def get_live_pso_price():
 
 def get_petrol_price():
     current, source = get_live_pso_price()
+=======
+                    return float(price_text)
+    except Exception as e:
+        print(f"Scraper warning: {e}. Falling back to default.")
+    
+    return DEFAULT_PRICE
+
+
+def get_petrol_price():
+    current = get_live_pso_price()
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
     return {
         "price": current,
         "current_price": current,
+<<<<<<< HEAD
         "source": source,
+=======
+        "source": "Live PSO/Shell Web Source",
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         "checked_at": datetime.now().isoformat()
     }
 

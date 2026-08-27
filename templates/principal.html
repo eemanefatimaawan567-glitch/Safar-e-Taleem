@@ -23,15 +23,22 @@
             <a href="#hybrid" class="nav-item" onclick="generateHybridTimetable(); document.getElementById('schedule-output').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-calendar-days"></i> Hybrid Shift Predictor</a>
             <a href="#breakdown" class="nav-item" onclick="document.querySelector('.panel-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-users"></i> Student Analytics</a>
             <a href="#study-pods" class="nav-item" onclick="document.getElementById('study-pods').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-house-laptop"></i> Study Pods</a>
+<<<<<<< HEAD
             <a href="#offline-packets" class="nav-item" onclick="document.getElementById('offline-packets').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-file-pdf"></i> Offline Packets</a>
             <a href="#whatsapp-sms" class="nav-item" onclick="document.getElementById('whatsapp-sms').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-brands fa-whatsapp"></i> WhatsApp / SMS</a>
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         </nav>
         <a href="/logout" class="nav-item sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</a>
     </aside>
 
     <main class="main-content">
 
+<<<<<<< HEAD
         <div class="topbar anim-fade-up">
+=======
+        <div class="topbar">
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
             <div>
                 <div class="eyebrow">PRINCIPAL DASHBOARD</div>
                 <h1>Welcome back, Principal {{ user.name if user and user.name else 'Administrator' }}</h1>
@@ -47,7 +54,11 @@
         <div class="petrol-card" id="alert-card" style="border-left: 6px solid {{ '#ef4444' if alert else '#10b981' }};">
             <div>
                 <div class="petrol-label">PSO FUEL PRICE MONITORING</div>
+<<<<<<< HEAD
                 <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '343' }} / L</div>
+=======
+                <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '331.2' }} / L</div>
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
                 <div class="petrol-change" id="status-text">
                     {% if alert %}
                     <span class="live-dot" style="background-color: #ef4444;"></span> High Alert: Critical Price Increase (+{{ percentage_change if percentage_change else 0 }}%)
@@ -61,6 +72,7 @@
             </button>
         </div>
 
+<<<<<<< HEAD
         <!-- DEMO MODE CONTROLS — for hackathon judges -->
         <div class="panel-card" style="margin-bottom: 20px; border-left: 6px solid #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);">
             <div class="panel-header">
@@ -82,6 +94,8 @@
             </div>
         </div>
 
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
         <div class="metric-grid">
             <div class="metric">
                 <div class="metric-header">
@@ -229,6 +243,7 @@
                     No study pods formed yet — need at least one device-owning family near a non-owning one.
                 </div>
             {% endif %}
+<<<<<<< HEAD
         </div>
 
         <!-- OFFLINE LEARNING PACKETS -->
@@ -314,6 +329,24 @@
             </p>
         </div>
         {% endif %}
+=======
+
+            {% if unmatched_families %}
+            <div style="margin-top: 16px; padding: 14px; background: #fffbeb; border-radius: 12px; border: 1px solid #fde68a;">
+                <p style="margin: 0 0 8px 0; font-size: 0.85rem; font-weight: 600; color: #92400e;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> No nearby host found for:
+                </p>
+                {% for u in unmatched_families %}
+                <div style="font-size: 0.8rem; color: #92400e;">• {{ u.name }} ({{ u.neighborhood }})</div>
+                {% endfor %}
+                <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #92400e;">
+                    These families will need an Offline Learning Packet for hybrid/online days.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     </main>
 
 </div>
@@ -343,6 +376,7 @@ async function refreshSosBanner() {
 document.addEventListener('DOMContentLoaded', () => {
     refreshSosBanner();
     setInterval(refreshSosBanner, 6000);
+<<<<<<< HEAD
     // Auto-load notification log on principal dashboard
     refreshNotificationLog();
 });
@@ -474,6 +508,9 @@ async function resetPetrolPrice() {
         if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to reset.</span>';
     }
 }
+=======
+});
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 </script>
 
 </body>

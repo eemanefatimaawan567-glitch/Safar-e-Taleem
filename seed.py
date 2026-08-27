@@ -11,6 +11,10 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
+<<<<<<< HEAD
+=======
+from app import app, db, User, PetrolPrice
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 from werkzeug.security import generate_password_hash
 
 # ─────────────────────────────────────────────
@@ -206,7 +210,10 @@ DEMO_USERS = [
 
 
 def seed():
+<<<<<<< HEAD
     from app import app, db, User, PetrolPrice
+=======
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
     with app.app_context():
         # Check if already seeded
         existing = User.query.filter_by(email="ayesha@demo.com").first()
@@ -239,7 +246,11 @@ def seed():
 
         # Seed initial petrol price
         if PetrolPrice.query.count() == 0:
+<<<<<<< HEAD
             db.session.add(PetrolPrice(price=343.00, source="seed"))
+=======
+            db.session.add(PetrolPrice(price=331.20, source="seed"))
+>>>>>>> b08d017e708e84350934a6d47ec3c913988e2e21
 
         db.session.commit()
 

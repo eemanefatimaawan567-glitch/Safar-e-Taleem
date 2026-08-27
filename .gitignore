@@ -1,0 +1,27 @@
+# Virtual environments
+venv/
+hackathon_env/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Database
+instance/
+*.db
+
+# Environment / secrets
+.env
+
+# Editor / OS junk
+.DS_Store
+.qoder/
+tempCodeRunnerFile.py
+
+# Generated output (regenerate via scripts, don't commit)
+carpool_cluster_map.html
+commute_groups.csv

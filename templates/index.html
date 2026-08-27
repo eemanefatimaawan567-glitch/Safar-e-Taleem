@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safar-e-Taleem | Smart School Transport for Pakistan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<header class="navbar">
+    <div class="nav-inner">
+        <div class="brand-logo">
+            <div class="brand-mark"><i class="fa-solid fa-route"></i></div>
+            <span>Safar-e-Taleem</span>
+        </div>
+        <div class="nav-actions">
+            <a href="/demo-login/parent" class="btn btn-outline">Demo: Parent</a>
+            <a href="/demo-login/principal" class="btn btn-primary">Demo: Principal</a>
+        </div>
+    </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-container">
+        <div class="hero-content">
+            <div class="eyebrow">AI-Powered School Mobility</div>
+            <h1>Making every school <span>journey smarter.</span></h1>
+            <p class="hero-text">
+                Safar-e-Taleem helps Pakistani families cut school transport costs through
+                AI-clustered walking groups, fuel-aware hybrid scheduling, and Roman-Urdu voice assistance.
+            </p>
+            <div class="hero-actions">
+                <a href="/demo-login/parent" class="btn btn-primary btn-lg"><i class="fa-solid fa-user"></i> Try Demo: Parent</a>
+                <a href="/demo-login/principal" class="btn btn-outline btn-lg"><i class="fa-solid fa-graduation-cap"></i> Try Demo: Principal</a>
+            </div>
+        </div>
+
+        <!-- Live Dashboard Preview -->
+        <div class="dashboard-preview">
+            <div class="preview-top">
+                <div class="preview-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Live System Overview</div>
+                <div class="live-status"><span class="pulse-dot"></span> SYSTEM ACTIVE</div>
+            </div>
+            <div class="preview-grid">
+                <div class="preview-card">
+                    <div class="metric-label">Registered Families</div>
+                    <div class="metric-value">{{ parent_count if parent_count else 0 }}</div>
+                    <span class="badge">{{ total_students if total_students else 0 }} children</span>
+                </div>
+                <div class="preview-card">
+                    <div class="metric-label">Transport Groups</div>
+                    <div class="metric-value">{{ group_count if group_count else 0 }}</div>
+                    <span class="badge">AI clustered</span>
+                </div>
+                <div class="preview-card">
+                    <div class="metric-label">Estimated Savings</div>
+                    <div class="metric-value" style="color: var(--primary);">Rs {{ "{:,.0f}".format(total_savings) if total_savings else '0' }}</div>
+                    <span class="badge">This month</span>
+                </div>
+                <div class="preview-card">
+                    <div class="metric-label">Fuel Monitoring</div>
+                    <div class="metric-value" style="font-size: 1.2rem;">Rs {{ petrol_price if petrol_price else '343' }}/L</div>
+                    <span class="badge">
+                        {% if petrol_direction == 'increase' %}
+                            <i class="fa-solid fa-arrow-up" style="color: #ef4444;"></i> Rising
+                        {% elif petrol_direction == 'decrease' %}
+                            <i class="fa-solid fa-arrow-down" style="color: #10b981;"></i> Falling
+                        {% else %}
+                            Stable
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PETROL PRICE BANNER -->
+<section class="petrol-section">
+    <div class="petrol-card">
+        <div>
+            <div class="petrol-label">PSO Fuel Price Monitoring</div>
+            <div class="petrol-value" id="live-price">Rs {{ petrol_price if petrol_price else '343' }} / L</div>
+            <div class="petrol-change">
+                {% if petrol_direction == 'increase' %}
+                <span class="live-dot" style="background-color: #ef4444;"></span>
+                <span style="color: #fca5a5;">Price increased by Rs {{ petrol_change }} (+{{ petrol_percentage }}%)</span>
+                {% elif petrol_direction == 'decrease' %}
+                <span class="live-dot"></span>
+                <span style="color: #86efac;">Price decreased by Rs {{ petrol_change|abs }} ({{ petrol_percentage }}%)</span>
+                {% else %}
+                <span class="live-dot"></span> Fuel rates stable across station networks
+                {% endif %}
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+            <span class="btn btn-teal"><i class="fa-solid fa-tower-broadcast"></i> Live monitoring</span>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section">
+    <div class="features-grid">
+        <div class="feature-card anim-fade-up anim-delay-1">
+            <div class="feature-icon" style="background: #ecfdf5; color: #059669;">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <h3>AI Walking Groups</h3>
+            <p>DBSCAN clustering automatically groups families within 1 km. Parents take turns walking kids to school — zero fuel cost, 100% safe.</p>
+        </div>
+        <div class="feature-card anim-fade-up anim-delay-2">
+            <div class="feature-icon" style="background: #fef3c7; color: #b45309;">
+                <i class="fa-solid fa-gas-pump"></i>
+            </div>
+            <h3>Live Fuel Monitoring</h3>
+            <p>Real-time PSO petrol price tracking with automatic alerts. When prices spike, principals can switch to hybrid schedules in one click.</p>
+        </div>
+        <div class="feature-card anim-fade-up anim-delay-3">
+            <div class="feature-icon" style="background: #ede9fe; color: #6d28d9;">
+                <i class="fa-solid fa-microphone"></i>
+            </div>
+            <h3>Roman-Urdu Voice AI</h3>
+            <p>Parents tap a mic button and speak in Urdu. Alibaba Qwen AI processes their voice and speaks back practical, localized solutions.</p>
+        </div>
+        <div class="feature-card anim-fade-up anim-delay-3">
+            <div class="feature-icon" style="background: #fce7f3; color: #be185d;">
+                <i class="fa-solid fa-location-crosshairs"></i>
+            </div>
+            <h3>Live Safety Tracking</h3>
+            <p>Real-time GPS tracking with SOS alerts. Pod-mates and coordinators see live locations during the school commute.</p>
+        </div>
+        <div class="feature-card anim-fade-up anim-delay-4">
+            <div class="feature-icon" style="background: #dbeafe; color: #1e40af;">
+                <i class="fa-solid fa-house-laptop"></i>
+            </div>
+            <h3>Mohallah Study Pods</h3>
+            <p>Matches device-owning families with 3 nearby non-owners. Kids share a single screen for hybrid/online learning days.</p>
+        </div>
+        <div class="feature-card anim-fade-up anim-delay-5">
+            <div class="feature-icon" style="background: #d1fae5; color: #047857;">
+                <i class="fa-brands fa-whatsapp"></i>
+            </div>
+            <h3>WhatsApp / SMS / IVR</h3>
+            <p>Curriculum content pushed to families without devices via low-data channels — so no child misses out on online learning days.</p>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+    <div class="section-header">
+        <h2>How It Works</h2>
+        <p>From registration to savings in 4 simple steps</p>
+    </div>
+    <div class="steps-grid">
+        <div class="step-card anim-fade-up anim-delay-1">
+            <div class="step-number">1</div>
+            <h3>Register</h3>
+            <p>Parents enter their neighborhood, school, and GPS location. CNIC-verified for safety.</p>
+        </div>
+        <div class="step-card anim-fade-up anim-delay-2">
+            <div class="step-number">2</div>
+            <h3>AI Clusters</h3>
+            <p>DBSCAN algorithm groups nearby families going to the same school into walking or carpool groups.</p>
+        </div>
+        <div class="step-card anim-fade-up anim-delay-3">
+            <div class="step-number">3</div>
+            <h3>Smart Commute</h3>
+            <p>Get matched with neighbors, track live locations, and receive AI-powered cost-saving recommendations.</p>
+        </div>
+        <div class="step-card anim-fade-up anim-delay-4">
+            <div class="step-number">4</div>
+            <h3>Save Money</h3>
+            <p>Carpooling cuts costs by 50%. Walking groups eliminate fuel costs entirely. Hybrid saves 40% more.</p>
+        </div>
+    </div>
+</section>
+
+<!-- STATS BAR -->
+<section class="stats-bar">
+    <div class="stats-bar-inner">
+        <div class="stat-item">
+            <div class="stat-value">{{ parent_count if parent_count else 0 }}</div>
+            <div class="stat-label">Registered Families</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ group_count if group_count else 0 }}</div>
+            <div class="stat-label">AI-Clustered Groups</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">Rs {{ "{:,.0f}".format(total_savings) if total_savings else '0' }}</div>
+            <div class="stat-label">Monthly Savings</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">40%</div>
+            <div class="stat-label">Hybrid Cost Reduction</div>
+        </div>
+    </div>
+</section>
+
+<!-- DEMO GUIDE — collapsible walkthrough for hackathon judges -->
+<section style="padding: 40px 24px; max-width: 900px; margin: 0 auto;">
+    <details style="border: 2px solid #f59e0b; border-radius: 16px; overflow: hidden;">
+        <summary style="padding: 16px 20px; background: linear-gradient(135deg, #fffbeb, #ffffff); cursor: pointer; font-weight: 700; font-size: 1.05rem; color: #92400e; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-flask" style="font-size: 1.2rem;"></i>
+            Hackathon Demo Guide — Click to expand the Golden Path walkthrough
+        </summary>
+        <div style="padding: 20px; font-family: 'Inter', sans-serif; font-size: 0.875rem; line-height: 1.7; color: #374151;">
+            <p style="margin-bottom: 16px;"><strong>Follow these steps in order for the best demo experience:</strong></p>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #059669; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">1</span>
+                <div><strong>Principal Dashboard (normal state)</strong> — Click <em>"Demo: Principal"</em> above. Dashboard shows stable petrol prices (Rs 343/L), transport groups, study pods, and analytics.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #ef4444; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">2</span>
+                <div><strong>Trigger Petrol Spike</strong> — Click <em>"Trigger Spike (Rs 380/L)"</em> in the yellow Demo Mode panel. Price jumps, alert card turns red, hybrid schedule auto-activates.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #3b82f6; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">3</span>
+                <div><strong>Generate Offline Packets</strong> — Scroll to Offline Learning Packets. Download Primary/Middle/Secondary curriculum PDFs for families without devices.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #25D366; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">4</span>
+                <div><strong>WhatsApp/SMS Broadcast</strong> — Select a level, click <em>"Send via WhatsApp"</em>. Check the Delivery Log to see simulated messages sent to unmatched families.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #8b5cf6; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">5</span>
+                <div><strong>Parent Dashboard + Voice AI</strong> — Go back and click <em>"Demo: Parent"</em>. Open the Ask Ammi/Abba assistant. Tap the mic and speak: <em>"Petrol mehnga ho gaya, school kaise jayein?"</em> — AI responds in Roman-Urdu.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
+                <span style="background: #f59e0b; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">6</span>
+                <div><strong>Live Safety Tracking</strong> — On parent dashboard, click <em>"Start Sharing"</em>. Watch the GPS marker walk along a realistic route toward school. Click <em>SOS</em> to trigger an emergency alert.</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+                <span style="background: #059669; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">7</span>
+                <div><strong>Reset &amp; Repeat</strong> — Back on principal, click <em>"Reset to Normal"</em> to restore prices and deactivate hybrid for a clean restart.</div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 12px; background: #f0fdf4; border-radius: 10px; border: 1px solid #bbf7d0;">
+                <strong style="color: #059669;">Tech Stack:</strong> Flask + SQLite + scikit-learn DBSCAN + Leaflet.js + Alibaba Qwen AI + Web Speech API + xhtml2pdf
+            </div>
+        </div>
+    </details>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <div class="cta-inner">
+        <h2>Ready to transform your school commute?</h2>
+        <p>Try the live demo — no sign-up required. See how Safar-e-Taleem saves families money every month.</p>
+        <div class="cta-actions">
+            <a href="/demo-login/parent" class="btn btn-primary btn-lg"><i class="fa-solid fa-play"></i> Parent Demo</a>
+            <a href="/demo-login/principal" class="btn btn-outline btn-lg"><i class="fa-solid fa-graduation-cap"></i> Principal Demo</a>
+        </div>
+    </div>
+</section>
+
+<!-- FLOATING AI ASSISTANT -->
+<div class="floating-bot-container">
+    <div class="chat-popup" id="chat-popup">
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" class="chat-avatar" alt="Ammi/Abba AI">
+                <div>
+                    <p class="chat-bot-title">Ask Ammi/Abba</p>
+                    <span class="chat-bot-status">● Safar-e-Taleem AI Assistant</span>
+                </div>
+            </div>
+            <button class="chat-close-btn" onclick="toggleRobotAssistant()">&times;</button>
+        </div>
+        <div class="chat-body" id="chat-messages">
+            <div class="message bot-message">
+                👋 Assalam-o-Alaikum! Main Safar-e-Taleem Assistant hoon. Type or tap the mic to ask how to save fuel costs!
+            </div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="chat-input" placeholder="Type in Roman-Urdu or English..." onkeypress="handleKeyPress(event)">
+            <button class="chat-mic-btn" id="index-mic-btn" onclick="recordVoiceCommand()" title="Voice Assistant">
+                <i class="fa-solid fa-microphone" id="index-mic-icon"></i>
+            </button>
+            <button class="chat-send-btn" onclick="sendMessage()">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <div class="robot-speech-bubble" id="bot-bubble">
+        👋 Ask Ammi/Abba how to reduce transport costs!
+    </div>
+    <div class="robot-avatar-wrapper" onclick="toggleRobotAssistant()">
+        <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="Ask Ammi/Abba AI" class="robot-img">
+        <div class="bot-status-badge"></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

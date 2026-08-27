@@ -1,0 +1,11 @@
+family_id,parent_name,area,latitude,longitude,children,transport,school,school_latitude,school_longitude
+F01,Ayesha Khan,Area A,33.6844,73.0479,2,Van,School A,33.6890,73.0510
+F02,Hassan Ali,Area A,33.6860,73.0495,1,Car,School A,33.6890,73.0510
+F03,Sana Ahmed,Area A,33.6828,73.0460,2,Bike,School A,33.6890,73.0510
+F04,Usman Malik,Area A,33.6900,73.0520,1,Van,School A,33.6890,73.0510
+F05,Maryam Shah,Area B,33.7000,73.0600,2,Car,School B,33.7350,73.0900
+F06,Ali Raza,Area B,33.7015,73.0615,1,Van,School B,33.7350,73.0900
+F07,Hira Noor,Area B,33.7030,73.0590,2,Bike,School B,33.7350,73.0900
+F08,Zainab Khan,Area C,33.7200,73.0800,1,Van,School C,33.7250,73.0850
+F09,Ahmed Hassan,Area C,33.7215,73.0820,2,Car,School C,33.7250,73.0850
+F10,Laiba Tariq,Area C,33.7230,73.0790,1,Bike,School C,33.7250,73.0850

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | Safar-e-Taleem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body.auth-page {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+        }
+        .auth-card {
+            background: #ffffff;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            padding: 36px 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: #0f172a;
+            margin-bottom: 16px;
+        }
+        .brand-mark {
+            background: #10b981;
+            color: white;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        .auth-header h2 { font-size: 1.4rem; font-weight: 700; text-align: center; margin: 0 0 6px 0; }
+        .auth-header p { color: #64748b; font-size: 0.875rem; text-align: center; margin: 0 0 24px 0; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .form-group label { font-size: 0.825rem; font-weight: 600; color: #0f172a; }
+        .form-group input, .form-group select { padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; outline: none; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-location { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #0f172a; font-weight: 500; }
+        .btn-location:hover { background: #e2e8f0; }
+        .btn-location.active { background: #d1fae5; border-color: #10b981; color: #059669; }
+        .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; color: #10b981; text-transform: uppercase; margin: 20px 0 12px 0; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+        .btn-submit { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 0.95rem; cursor: pointer; margin-top: 8px; }
+        .auth-footer { text-align: center; font-size: 0.85rem; color: #64748b; margin-top: 20px; }
+        .auth-footer a { color: #059669; font-weight: 600; text-decoration: none; }
+    </style>
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+    <div class="auth-header">
+        <div class="brand-logo">
+            <div class="brand-mark"><i class="fa-solid fa-route"></i></div>
+            <span>Safar-e-Taleem</span>
+        </div>
+        <h2>Create an Account</h2>
+        <p>CNIC verification ensures safe school transport</p>
+    </div>
+
+    {% if error %}
+    <div style="background: #fef2f2; color: #991b1b; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px;">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <form action="/register" method="POST">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" name="name" placeholder="e.g. Fatima Bibi" required>
+        </div>
+
+        <div class="form-group">
+            <label>CNIC Number (13 Digits)</label>
+            <input 
+                type="text" 
+                name="cnic" 
+                id="cnic-input" 
+                placeholder="35201-1234567-1" 
+                maxlength="15" 
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" name="email" placeholder="e.g. fatima@gmail.com" required>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+
+        <div class="form-group">
+            <label>Role</label>
+            <select name="role" required>
+                <option value="parent">Parent</option>
+                <option value="principal">School Principal</option>
+            </select>
+        </div>
+
+        <div class="section-label"><i class="fa-solid fa-location-dot"></i> Location & School Info</div>
+
+        <div class="form-group">
+            <label>Neighborhood / Area</label>
+            <select name="neighborhood" id="neighborhood-select">
+                <option value="">Select your area</option>
+                <option value="Bahria Town Phase 8">Bahria Town Phase 8</option>
+                <option value="G-11 Islamabad">G-11 Islamabad</option>
+                <option value="Satellite Town Rwp">Satellite Town Rwp</option>
+                <option value="F-8 Islamabad">F-8 Islamabad</option>
+                <option value="DHA Phase 2">DHA Phase 2</option>
+                <option value="Gulberg Lahore">Gulberg Lahore</option>
+                <option value="Clifton Karachi">Clifton Karachi</option>
+                <option value="other">Other (type below)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" name="address" placeholder="e.g. House 12, Street 5, Block B">
+        </div>
+
+        <div class="form-group">
+            <label>Detect My Location</label>
+            <button type="button" class="btn-location" id="geo-btn" onclick="detectLocation()">
+                <i class="fa-solid fa-crosshairs"></i>
+                <span id="geo-text">Use GPS to find my area</span>
+            </button>
+            <input type="hidden" name="latitude" id="lat-input">
+            <input type="hidden" name="longitude" id="lon-input">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>School Name</label>
+                <input type="text" name="school_name" placeholder="e.g. Beaconhouse">
+            </div>
+            <div class="form-group">
+                <label>Children</label>
+                <select name="children_count">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5+</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Does your household have a smartphone or laptop your child can use for online learning?</label>
+            <select name="has_smart_device">
+                <option value="yes">Yes — we have a device</option>
+                <option value="no">No — no digital device at home</option>
+            </select>
+            <span style="font-size: 0.75rem; color: #64748b;">
+                This helps us match families without a device to a nearby "Study Pod" host during hybrid/online days.
+            </span>
+        </div>
+
+        <button type="submit" class="btn-submit">Verify CNIC & Register</button>
+    </form>
+
+    <div class="auth-footer">
+        Already registered? <a href="/login">Sign in here</a>
+    </div>
+</div>
+
+<script>
+// Auto-dash formatting for CNIC
+document.getElementById('cnic-input').addEventListener('input', function (e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 5 && v.length <= 12) {
+        v = v.slice(0, 5) + '-' + v.slice(5);
+    } else if (v.length > 12) {
+        v = v.slice(0, 5) + '-' + v.slice(5, 12) + '-' + v.slice(12, 13);
+    }
+    e.target.value = v;
+});
+
+// Geolocation detection
+function detectLocation() {
+    const btn = document.getElementById('geo-btn');
+    const text = document.getElementById('geo-text');
+
+    if (!navigator.geolocation) {
+        text.textContent = 'GPS not supported in this browser';
+        return;
+    }
+
+    text.textContent = 'Detecting location...';
+
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            document.getElementById('lat-input').value = pos.coords.latitude.toFixed(6);
+            document.getElementById('lon-input').value = pos.coords.longitude.toFixed(6);
+            text.textContent = 'Location detected! (' + pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4) + ')';
+            btn.classList.add('active');
+        },
+        function(err) {
+            text.textContent = 'Could not detect — please select area manually';
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+</script>
+
+</body>
+</html>

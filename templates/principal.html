@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principal Dashboard | Safar-e-Taleem</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+            <span>Safar-e-Taleem</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#overview" class="nav-item active" onclick="document.querySelector('.petrol-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+            <a href="#hybrid" class="nav-item" onclick="generateHybridTimetable(); document.getElementById('schedule-output').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-calendar-days"></i> Hybrid Shift Predictor</a>
+            <a href="#breakdown" class="nav-item" onclick="document.querySelector('.panel-card').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-users"></i> Student Analytics</a>
+            <a href="#study-pods" class="nav-item" onclick="document.getElementById('study-pods').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-house-laptop"></i> Study Pods</a>
+            <a href="#offline-packets" class="nav-item" onclick="document.getElementById('offline-packets').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-solid fa-file-pdf"></i> Offline Packets</a>
+            <a href="#whatsapp-sms" class="nav-item" onclick="document.getElementById('whatsapp-sms').scrollIntoView({behavior:'smooth'}); return false;"><i class="fa-brands fa-whatsapp"></i> WhatsApp / SMS</a>
+        </nav>
+        <a href="/logout" class="nav-item sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Sign out</a>
+    </aside>
+
+    <main class="main-content">
+
+        <div class="topbar anim-fade-up">
+            <div>
+                <div class="eyebrow">PRINCIPAL DASHBOARD</div>
+                <h1>Welcome back, Principal {{ user.name if user and user.name else 'Administrator' }}</h1>
+            </div>
+            <div class="avatar-chip">{{ user.name[0] if user and user.name else 'P' }}</div>
+        </div>
+
+        <!-- OGRA critical alert — revealed by the Hackathon panel slider above Rs 380/L -->
+        <div id="ogre-alert" class="ogre-alert" role="alert">
+            ⚠️ OGRA ALERT: Fuel Price Critical! System executing hybrid contingency models.
+        </div>
+
+        <div id="sos-banner" class="sos-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span></span>
+        </div>
+
+        <div class="petrol-card" id="alert-card" style="border-left: 6px solid {{ '#ef4444' if alert else '#004D40' }};">
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <div class="petrol-label">PSO FUEL PRICE MONITORING</div>
+                        <div class="petrol-value" id="live-price"><span class="skeleton skeleton-line-lg">&nbsp;</span></div>
+                        <div class="petrol-change" id="status-text">
+                            {% if alert %}
+                            <span class="live-dot" style="background-color: #ef4444;"></span> High Alert: Critical Price Increase (+{{ percentage_change if percentage_change else 0 }}%)
+                            {% else %}
+                            <span class="live-dot"></span> Fuel rates stable across station networks
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="fuel-refresh-btn" onclick="refreshFuelPrices()" aria-label="Refresh fuel prices">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-fuel price tiles -->
+                <div class="fuel-grid">
+                    <div class="fuel-tile fuel-highlight">
+                        <div class="fuel-tile-label"><i class="fa-solid fa-gas-pump"></i> Petrol</div>
+                        <div class="fuel-tile-price" id="fuel-petrol"><span class="skeleton skeleton-line">&nbsp;</span></div>
+                        <div class="fuel-tile-unit">per litre</div>
+                    </div>
+                    <div class="fuel-tile">
+                        <div class="fuel-tile-label"><i class="fa-solid fa-truck"></i> Diesel (HSD)</div>
+                        <div class="fuel-tile-price" id="fuel-diesel"><span class="skeleton skeleton-line">&nbsp;</span></div>
+                        <div class="fuel-tile-unit">per litre</div>
+                    </div>
+                    <div class="fuel-tile">
+                        <div class="fuel-tile-label"><i class="fa-solid fa-fire-flame-simple"></i> Kerosene</div>
+                        <div class="fuel-tile-price" id="fuel-kerosene"><span class="skeleton skeleton-line">&nbsp;</span></div>
+                        <div class="fuel-tile-unit">per litre</div>
+                    </div>
+                    <div class="fuel-tile">
+                        <div class="fuel-tile-label"><i class="fa-solid fa-fire-burner"></i> LPG</div>
+                        <div class="fuel-tile-price" id="fuel-lpg"><span class="skeleton skeleton-line">&nbsp;</span></div>
+                        <div class="fuel-tile-unit">per kg</div>
+                    </div>
+                </div>
+
+                <div class="fuel-meta">
+                    <span class="live-dot" style="width: 6px; height: 6px;"></span>
+                    <span id="fuel-effective-date">Loading effective date…</span>
+                    <span style="opacity: 0.4;">|</span>
+                    <span>Source: <strong id="fuel-source">TrackMate API</strong></span>
+                </div>
+                <div id="fuel-error-msg" class="fuel-error" style="display: none;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Unable to load latest fuel prices.
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateHybridTimetable()" style="margin-left: 16px; align-self: flex-start;">
+                <i class="fa-solid fa-bolt"></i> Auto-Generate Hybrid Shift
+            </button>
+        </div>
+
+        <!-- HACKATHON INTERACTIVE PANEL — petrol price simulator for judges -->
+        <div class="panel-card hackathon-panel">
+            <div class="panel-header">
+                <p class="panel-title hackathon-panel-title"><i class="fa-solid fa-flask"></i> Hackathon Interactive Panel</p>
+                <span class="badge hackathon-badge">Hackathon</span>
+            </div>
+            <p class="hackathon-panel-desc">
+                Drag the slider to simulate any petrol price — the dashboard reacts instantly, entirely in your browser.
+                Above <strong>Rs 380/L</strong> the OGRA critical alert fires and the hybrid contingency schedule activates.
+                The live PSO/TrackMate price feed is never modified.
+            </p>
+            <div class="hackathon-slider-row">
+                <label for="petrol-spike-slider" class="hackathon-slider-label">
+                    <i class="fa-solid fa-sliders" aria-hidden="true"></i> Simulate Petrol Price Spike
+                </label>
+                <div class="hackathon-price-display" aria-live="polite">
+                    <span class="hackathon-price-caption">Petrol Price:</span>
+                    <span id="spike-price-value">Rs 343</span>
+                    <span class="hackathon-price-unit">/ L</span>
+                </div>
+            </div>
+            <input
+                type="range"
+                id="petrol-spike-slider"
+                class="hackathon-slider"
+                min="300"
+                max="500"
+                value="343"
+                step="1"
+                aria-label="Simulated petrol price in rupees per litre"
+            >
+            <div class="hackathon-scale" aria-hidden="true">
+                <span>Rs 300</span>
+                <span class="hackathon-scale-threshold">Rs 380 threshold</span>
+                <span>Rs 500</span>
+            </div>
+            <div id="spike-status" class="hackathon-status" role="status">
+                Frontend simulation only — live PSO/TrackMate prices are unaffected.
+            </div>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Registered Families</span>
+                    <i class="fa-solid fa-user-graduate metric-icon"></i>
+                </div>
+                <div class="metric-value">{{ total_parents if total_parents else 0 }}</div>
+                <div class="metric-change">{{ total_students }} children enrolled</div>
+            </div>
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Avg. Monthly Transport Cost</span>
+                    <i class="fa-solid fa-gas-pump metric-icon"></i>
+                </div>
+                <div class="metric-value">Rs {{ "{:,.0f}".format(avg_monthly_cost) }}</div>
+                <div class="metric-change">Per household (live petrol price)</div>
+            </div>
+            <div class="metric">
+                <div class="metric-header">
+                    <span class="metric-label">Potential Hybrid Savings</span>
+                    <i class="fa-solid fa-chart-line metric-icon"></i>
+                </div>
+                <div class="metric-value" style="color: #004D40;">40%</div>
+                <div class="metric-change">3-day physical / 2-day online</div>
+            </div>
+        </div>
+
+        <div class="split-grid">
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <p class="panel-title"><i class="fa-solid fa-bus"></i> Transport Mode Breakdown</p>
+                    <span class="badge">Live Census</span>
+                </div>
+                <div class="group-list">
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-person-walking" style="color: var(--primary);"></i>
+                            <div>
+                                <div class="person-name">Walking Groups</div>
+                                <div class="person-role">Recommended for &lt;1 km</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ walking_groups if walking_groups else 0 }} groups • Rs 0 fuel</span>
+                    </div>
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-car-side" style="color: #3b82f6;"></i>
+                            <div>
+                                <div class="person-name">Carpool / Shared Ride</div>
+                                <div class="person-role">Recommended for 1-3 km</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ carpool_groups if carpool_groups else 0 }} groups</span>
+                    </div>
+                    <div class="group-row">
+                        <div class="group-person">
+                            <i class="fa-solid fa-motorcycle" style="color: #f59e0b;"></i>
+                            <div>
+                                <div class="person-name">Solo Transport / Van</div>
+                                <div class="person-role">No nearby cluster match</div>
+                            </div>
+                        </div>
+                        <span class="group-distance">{{ solo_count if solo_count else 0 }} families</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-header">
+                    <p class="panel-title"><i class="fa-solid fa-chart-line"></i> Petrol Price History</p>
+                    <span class="badge" id="history-badge">Loading...</span>
+                </div>
+                <canvas id="petrol-chart" height="180" style="width: 100%; margin-top: 8px;"></canvas>
+                <div id="hybrid-shift-status" class="hybrid-shift-status" role="status">
+                    <i class="fa-solid fa-school" aria-hidden="true"></i> Physical School Status: Normal — 5-Day Physical Schedule
+                </div>
+                <div id="schedule-output" style="padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); margin-top: 12px;">
+                    <p style="margin: 0; line-height: 1.5; font-size: 0.9rem;">
+                        <strong>Current Policy:</strong> 5-Day Physical Schedule<br>
+                        <span style="color: var(--text-muted);">When petrol prices surge, click <strong>"Auto-Generate Hybrid Shift"</strong> above to cut parent commuting costs by 40%.</span>
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="panel-card" id="study-pods" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-house-laptop"></i> Mohallah Study Pods</p>
+                <span class="badge">{{ study_pods|length }} pod{{ 's' if study_pods|length != 1 }} formed</span>
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                Automatically matches families with a smartphone or laptop to nearby families without one,
+                so students can share a screen for hybrid/online learning days — reusing the same proximity
+                clustering as the walking-group matcher.
+            </p>
+
+            <div class="metric-grid" style="margin-bottom: 20px;">
+                <div class="metric">
+                    <div class="metric-header">
+                        <span class="metric-label">Families With a Device</span>
+                        <i class="fa-solid fa-mobile-screen metric-icon"></i>
+                    </div>
+                    <div class="metric-value">{{ device_owner_count }}</div>
+                    <div class="metric-change">out of {{ total_parents }} registered</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-header">
+                        <span class="metric-label">Families Matched</span>
+                        <i class="fa-solid fa-people-roof metric-icon"></i>
+                    </div>
+                    <div class="metric-value" style="color: #004D40;">{{ families_covered_by_pods }}</div>
+                    <div class="metric-change">into {{ study_pods|length }} pod{{ 's' if study_pods|length != 1 }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-header">
+                        <span class="metric-label">Still Unmatched</span>
+                        <i class="fa-solid fa-triangle-exclamation metric-icon"></i>
+                    </div>
+                    <div class="metric-value" style="{{ 'color:#dc2626;' if unmatched_families else '' }}">{{ unmatched_families|length }}</div>
+                    <div class="metric-change">need an offline packet</div>
+                </div>
+            </div>
+
+            {% if study_pods %}
+                {% for pod in study_pods %}
+                <div class="group-row" style="flex-direction: column; align-items: stretch; padding: 14px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div class="group-person">
+                            <i class="fa-solid fa-house" style="color: #00332B;"></i>
+                            <div>
+                                <div class="person-name">{{ pod.owner.name }} <span style="font-weight: 400; color: var(--text-muted); font-size: 0.8rem;">(host)</span></div>
+                                <div class="person-role">{{ pod.owner.neighborhood }}</div>
+                            </div>
+                        </div>
+                        <span class="badge" style="background-color: #E8F5E9; color: #00332B;">{{ pod.members|length }} famil{{ 'ies' if pod.members|length > 1 else 'y' }}</span>
+                    </div>
+                    {% for m in pod.members %}
+                    <div style="font-size: 0.825rem; color: var(--text-muted); padding: 6px 0 6px 30px; border-top: 1px dashed var(--border);">
+                        <i class="fa-solid fa-child"></i> {{ m.name }} — {{ pod.distances_km[loop.index0] }} km away
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
+                    No study pods formed yet — need at least one device-owning family near a non-owning one.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- OFFLINE LEARNING PACKETS -->
+        <div class="panel-card" id="offline-packets" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-file-pdf"></i> Offline Learning Packets</p>
+                <span class="badge">Printable Curriculum</span>
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                Generate printable curriculum packets for families without devices during hybrid/online days.
+                Covers Math, Science, English, and Urdu — aligned with Pakistani federal board curriculum.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;">
+                <button class="btn btn-primary" onclick="downloadPacket('primary')">
+                    <i class="fa-solid fa-download"></i> Primary (Grade 1-5)
+                </button>
+                <button class="btn btn-primary" onclick="downloadPacket('middle')">
+                    <i class="fa-solid fa-download"></i> Middle (Grade 6-8)
+                </button>
+                <button class="btn btn-primary" onclick="downloadPacket('secondary')">
+                    <i class="fa-solid fa-download"></i> Secondary (Grade 9-10)
+                </button>
+            </div>
+            <div id="packet-status" style="font-size: 0.825rem; color: var(--text-muted);"></div>
+        </div>
+
+        <!-- WHATSAPP / SMS / IVR CURRICULUM DELIVERY -->
+        <div class="panel-card" id="whatsapp-sms" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-brands fa-whatsapp"></i> WhatsApp / SMS / IVR Delivery</p>
+                <span class="badge" id="unmatched-badge">{{ unmatched_families|length }} families need it</span>
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                Push curriculum summaries to families without devices via low-data channels.
+                Messages go to families who aren't matched to a study pod host.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;">
+                <select id="curriculum-level" style="padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.875rem;">
+                    <option value="primary">Primary (Grade 1-5)</option>
+                    <option value="middle">Middle (Grade 6-8)</option>
+                    <option value="secondary">Secondary (Grade 9-10)</option>
+                </select>
+                <button class="btn btn-primary" onclick="broadcastCurriculum('whatsapp')">
+                    <i class="fa-brands fa-whatsapp"></i> Send via WhatsApp
+                </button>
+                <button class="btn btn-outline" onclick="broadcastCurriculum('sms')" style="border-color: var(--border); color: var(--text-main);">
+                    <i class="fa-solid fa-message"></i> Send SMS
+                </button>
+                <button class="btn btn-outline" onclick="broadcastCurriculum('ivr')" style="border-color: var(--border); color: var(--text-main);">
+                    <i class="fa-solid fa-phone"></i> IVR Call
+                </button>
+            </div>
+            <div id="broadcast-status" style="font-size: 0.825rem; color: var(--text-muted);"></div>
+
+            <!-- Notification Delivery Log -->
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> Delivery Log
+                    </p>
+                    <button class="btn btn-outline" onclick="refreshNotificationLog()" style="padding: 6px 12px; font-size: 0.75rem;">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+                <div id="notification-log-list">
+                    <div style="text-align: center; padding: 12px; color: var(--text-muted); font-size: 0.8rem;">
+                        Click a button above to send curriculum, then check the log here.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if unmatched_families %}
+        <div style="margin-top: 16px; padding: 14px; background: #fffbeb; border-radius: 12px; border: 1px solid #fde68a;">
+            <p style="margin: 0 0 8px 0; font-size: 0.85rem; font-weight: 600; color: #92400e;">
+                <i class="fa-solid fa-triangle-exclamation"></i> No nearby host found for:
+            </p>
+            {% for u in unmatched_families %}
+            <div style="font-size: 0.8rem; color: #92400e;">• {{ u.name }} ({{ u.neighborhood }})</div>
+            {% endfor %}
+            <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #92400e;">
+                These families will need an Offline Learning Packet for hybrid/online days.
+            </p>
+        </div>
+        {% endif %}
+    </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+<script>
+// Poll for any active SOS alerts school-wide (safety oversight)
+async function refreshSosBanner() {
+    try {
+        const res = await fetch('/api/location/pod');
+        if (!res.ok) return;
+        const data = await res.json();
+        const pod = data.pod || [];
+        const anySos = pod.some((e) => e.is_sos);
+        const banner = document.getElementById('sos-banner');
+        if (!banner) return;
+        banner.style.display = anySos ? 'flex' : 'none';
+        if (anySos) {
+            const names = pod.filter((e) => e.is_sos).map((e) => e.name).join(', ');
+            banner.querySelector('span').textContent = `SOS alert from: ${names}. Please reach out to their route captain immediately.`;
+        }
+    } catch (e) {
+        // silent — retry on next poll
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    refreshSosBanner();
+    setInterval(refreshSosBanner, 6000);
+    // Auto-load notification log on principal dashboard
+    refreshNotificationLog();
+    // Hackathon panel: bind the petrol price slider (single listener; no
+    // simulation until the judge actually drags it, so live PSO/TrackMate
+    // data still loads normally on first paint)
+    const spikeSlider = document.getElementById('petrol-spike-slider');
+    if (spikeSlider) {
+        spikeSlider.addEventListener('input', _handleSpikeSliderInput);
+        _paintSpikeSlider(spikeSlider, false);
+    }
+});
+
+// --- OFFLINE LEARNING PACKETS ---
+function downloadPacket(level) {
+    const statusEl = document.getElementById('packet-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color: var(--primary);">Generating ' + level + ' packet...</span>';
+    window.open('/api/offline-packets/generate?level=' + level, '_blank');
+    setTimeout(() => {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #004D40;"><i class="fa-solid fa-circle-check"></i> Packet opened in new tab. Use your browser\'s Print (Ctrl+P) to save as PDF.</span>';
+    }, 1500);
+}
+
+// --- WHATSAPP / SMS / IVR BROADCAST ---
+async function broadcastCurriculum(channel) {
+    const level = document.getElementById('curriculum-level').value;
+    const statusEl = document.getElementById('broadcast-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color: var(--primary);">Sending via ' + channel + '...</span>';
+
+    try {
+        const res = await fetch('/api/broadcast-curriculum', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level, channel }),
+        });
+        const data = await res.json();
+        if (data.sent > 0) {
+            if (statusEl) statusEl.innerHTML =
+                '<span style="color: #004D40;"><i class="fa-solid fa-circle-check"></i> ' + data.message + '</span>';
+        } else {
+            if (statusEl) statusEl.innerHTML =
+                '<span style="color: #004D40;"><i class="fa-solid fa-circle-check"></i> ' + (data.message || 'No families need offline delivery.') + '</span>';
+        }
+        // Refresh the notification log after sending
+        refreshNotificationLog();
+    } catch (e) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to send. Please try again.</span>';
+    }
+}
+
+// --- NOTIFICATION DELIVERY LOG ---
+async function refreshNotificationLog() {
+    const listEl = document.getElementById('notification-log-list');
+    if (!listEl) return;
+
+    try {
+        const res = await fetch('/api/notification-log');
+        if (!res.ok) return;
+        const logs = await res.json();
+
+        if (!logs || logs.length === 0) {
+            listEl.innerHTML = '<div style="text-align: center; padding: 12px; color: var(--text-muted); font-size: 0.8rem;">No curriculum deliveries yet. Send one above to see the log.</div>';
+            return;
+        }
+
+        const channelIcons = { whatsapp: 'fa-brands fa-whatsapp', sms: 'fa-solid fa-message', ivr: 'fa-solid fa-phone' };
+        const channelColors = { whatsapp: '#25D366', sms: '#3b82f6', ivr: '#f59e0b' };
+        const statusColors = { delivered: '#004D40', sent: '#004D40', failed: '#ef4444', pending: '#f59e0b' };
+
+        listEl.innerHTML = logs.map(log => {
+            const icon = channelIcons[log.channel] || 'fa-solid fa-bell';
+            const color = channelColors[log.channel] || 'var(--primary)';
+            const sColor = statusColors[log.status] || 'var(--text-muted)';
+            return `<div class="group-row" style="margin-bottom: 6px;">
+                <div class="group-person">
+                    <i class="${icon}" style="color: ${color};"></i>
+                    <div>
+                        <div class="person-name">${log.recipient}</div>
+                        <div class="person-role">${log.channel.toUpperCase()} — ${log.level}</div>
+                    </div>
+                </div>
+                <span style="font-size: 0.75rem; color: ${sColor}; font-weight: 600;">${log.status} • ${log.sent_at}</span>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        // silent
+    }
+}
+
+// --- HACKATHON INTERACTIVE PANEL: PETROL PRICE SLIDER (frontend-only simulation) ---
+const SPIKE_THRESHOLD = 380;   // above this price the OGRA critical alert fires
+const SPIKE_BASELINE = 343;    // normal price used for percentage-change display
+
+// Paint the slider track fill up to the current thumb position
+function _paintSpikeSlider(slider, critical) {
+    const pct = ((Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min))) * 100;
+    slider.style.background = critical
+        ? 'linear-gradient(90deg, #f59e0b 0%, #ef4444 ' + pct + '%, #e2e8f0 ' + pct + '%)'
+        : 'linear-gradient(90deg, #4DB6AC 0%, #004D40 ' + pct + '%, #e2e8f0 ' + pct + '%)';
+}
+
+// Reflect the simulated price on the existing dashboard elements (display only —
+// no backend calls, the real PSO/TrackMate feed and DB are never touched)
+function _applySimulatedPetrol(price) {
+    const p = Number(price);
+    const critical = p > SPIKE_THRESHOLD;
+
+    // Live price + petrol tile (existing formatting conventions)
+    const priceEl = document.getElementById('live-price');
+    if (priceEl) { priceEl.textContent = 'Rs ' + p + ' / L'; priceEl.dataset.loaded = '1'; }
+    const petrolTile = document.getElementById('fuel-petrol');
+    if (petrolTile) { petrolTile.textContent = 'Rs ' + p.toFixed(2); petrolTile.dataset.loaded = '1'; }
+
+    // Alert status line + petrol card border
+    const statusText = document.getElementById('status-text');
+    if (statusText) {
+        statusText.innerHTML = critical
+            ? '<span class="live-dot" style="background-color: #ef4444;"></span> High Alert: Critical Price Increase (+' + (((p - SPIKE_BASELINE) / SPIKE_BASELINE) * 100).toFixed(1) + '%)'
+            : '<span class="live-dot"></span> Fuel rates stable across station networks';
+    }
+    const alertCard = document.getElementById('alert-card');
+    if (alertCard) alertCard.style.borderLeftColor = critical ? '#ef4444' : '#004D40';
+
+    // Sticky OGRA critical banner
+    const ogreAlert = document.getElementById('ogre-alert');
+    if (ogreAlert) ogreAlert.classList.toggle('visible', critical);
+
+    // Hybrid shift status strip (dedicated element — #schedule-output content
+    // is never overwritten by the simulation)
+    const hybridStatus = document.getElementById('hybrid-shift-status');
+    if (hybridStatus) {
+        hybridStatus.classList.toggle('critical', critical);
+        hybridStatus.innerHTML = critical
+            ? '⚠️ Hybrid Shift Active (3 Days Physical / 2 Days Remote)'
+            : '<i class="fa-solid fa-school" aria-hidden="true"></i> Physical School Status: Normal — 5-Day Physical Schedule';
+    }
+}
+
+// Slider input handler — bound exactly once in DOMContentLoaded above
+function _handleSpikeSliderInput() {
+    const slider = document.getElementById('petrol-spike-slider');
+    if (!slider) return;
+    const price = Number(slider.value);
+    const critical = price > SPIKE_THRESHOLD;
+
+    // Mark the simulation active so the live fuel poll doesn't overwrite it
+    slider.dataset.simulating = '1';
+
+    // Live readout beside the slider
+    const valueEl = document.getElementById('spike-price-value');
+    if (valueEl) valueEl.textContent = 'Rs ' + price;
+
+    // Critical styling on the slider + panel
+    slider.classList.toggle('critical', critical);
+    const panel = slider.closest('.hackathon-panel');
+    if (panel) panel.classList.toggle('critical', critical);
+    _paintSpikeSlider(slider, critical);
+
+    // Reflect on the dashboard
+    _applySimulatedPetrol(price);
+
+    // Status line inside the panel
+    const statusEl = document.getElementById('spike-status');
+    if (statusEl) {
+        statusEl.innerHTML = critical
+            ? '<span style="color: #ef4444; font-weight: 600;">⚠️ Critical simulation: Rs ' + price + '/L is above the Rs ' + SPIKE_THRESHOLD + '/L threshold — hybrid contingency active.</span>'
+            : '<span style="color: var(--text-muted);">Simulation: Rs ' + price + '/L — at or below the Rs ' + SPIKE_THRESHOLD + '/L threshold, normal operations.</span>';
+    }
+}
+
+// Programmatic sync — keeps the legacy demo functions below aligned with the slider
+function _syncSpikeSlider(price) {
+    const slider = document.getElementById('petrol-spike-slider');
+    if (!slider) return;
+    slider.value = price;
+    _handleSpikeSliderInput();
+}
+
+// --- DEMO MODE: PETROL SPIKE (legacy — kept for API compatibility) ---
+// The hackathon slider replaced the old Trigger Spike / Reset buttons, but these
+// functions and their backend endpoints still work when called programmatically;
+// they now also sync the slider so every simulated element stays consistent.
+async function triggerPetrolSpike() {
+    const statusEl = document.getElementById('spike-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;"><i class="fa-solid fa-spinner fa-spin"></i> Injecting spike...</span>';
+
+    try {
+        const res = await fetch('/api/demo/petrol-spike', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ price: 380 }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444; font-weight: 600;"><i class="fa-solid fa-fire"></i> Spike active! Rs 380/L — dashboard updated.</span>';
+            // Drive the slider so the whole dashboard reflects Rs 380/L
+            _syncSpikeSlider(380);
+            // Auto-trigger hybrid schedule after a brief pause (existing behavior)
+            setTimeout(() => generateHybridTimetable(), 2000);
+        }
+    } catch (e) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to trigger spike.</span>';
+    }
+}
+
+async function resetPetrolPrice() {
+    const statusEl = document.getElementById('spike-status');
+    if (statusEl) statusEl.innerHTML = '<span style="color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Resetting...</span>';
+
+    try {
+        const res = await fetch('/api/demo/petrol-reset', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: #004D40;"><i class="fa-solid fa-circle-check"></i> Reset! Back to normal.</span>';
+            // Slide back to the normal price so all simulated elements reset
+            _syncSpikeSlider(343);
+        }
+    } catch (e) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to reset.</span>';
+    }
+}
+</script>
+
+</body>
+</html>

@@ -214,6 +214,11 @@ function toggleRobotAssistant() {
     }
 }
 
+// Recent conversation turns sent with each message so the AI understands
+// follow-up questions (e.g. "acha toh walking group join karun?")
+let chatHistory = [];
+const CHAT_HISTORY_LIMIT = 6;
+
 function appendMessage(text, sender) {
     const messages = document.getElementById('chat-messages');
     if (!messages) return;
@@ -247,10 +252,17 @@ async function sendMessage() {
         const res = await fetch('/api/ask-ammi-abba', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: query })
+            body: JSON.stringify({
+                message: query,
+                history: chatHistory.slice(-CHAT_HISTORY_LIMIT)
+            })
         });
         const data = await res.json();
         appendMessage(data.text_response, 'bot');
+        // Remember this turn so follow-up questions keep context
+        chatHistory.push({ sender: 'user', text: query });
+        chatHistory.push({ sender: 'bot', text: data.text_response });
+        if (chatHistory.length > 24) chatHistory = chatHistory.slice(-24);
         speakResponse(data.text_response, data.source);
     } catch (e) {
         appendMessage("Sorry, I couldn't connect right now. Please try again.", 'bot');

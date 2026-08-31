@@ -620,14 +620,22 @@ def demo_petrol_reset():
 
 @app.route('/api/ask-ammi-abba', methods=['POST'])
 def ask_ammi_abba():
-    from modules.ai_responses import generate_response
+    from modules.ai_responses import (
+        generate_response,
+        sanitize_roman_urdu_response,
+        normalize_chat_history,
+    )
 
     # Support both JSON and FormData
+    history = []
     if request.content_type and 'multipart' in request.content_type:
         user_query = request.form.get('message', '')
     else:
         data = request.json or {}
         user_query = data.get('message', '')
+        # Optional recent chat history ({sender, text} turns) so the AI
+        # can answer follow-up questions
+        history = normalize_chat_history(data.get('history'))
 
     if not user_query.strip():
         return jsonify({'text_response': 'Please type or speak your question. I am here to help!'})
@@ -692,7 +700,11 @@ def ask_ammi_abba():
     petrol = get_tracked_petrol_price()
 
     # Generate response (Qwen AI if key set and reachable, else rule-based fallback)
-    response_text, response_source = generate_response(user_query, petrol, user_context, db_context)
+    response_text, response_source = generate_response(user_query, petrol, user_context, db_context, history=history)
+
+    # Last-line spelling defence: fix Roman-Urdu phonetic typos before
+    # returning the answer to the frontend
+    response_text = sanitize_roman_urdu_response(response_text)
 
     return jsonify({'text_response': response_text, 'source': response_source})
 

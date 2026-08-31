@@ -8,6 +8,7 @@ Mother speaks in Urdu/Roman-Urdu → Qwen understands → speaks back in Roman-U
 """
 
 import os
+import re
 from dotenv import load_dotenv
 from modules.commute_engine import (
     recommend_transport,
@@ -50,7 +51,9 @@ def _get_qwen_client():
 # QWEN SYSTEM PROMPT — makes it speak natural Roman-Urdu
 # -----------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are "Ammi/Abba Assistant" for Safar-e-Taleem, a school transport app for Pakistani families.
+SYSTEM_PROMPT = """You are "Safar-e-Taleem AI" (the "Ammi/Abba Assistant") for Safar-e-Taleem, a school transport app for Pakistani families.
+You are a smart community transport assistant for Pakistani parents struggling with high school van and petrol fees.
+Your primary goal is to help parents organize carpools, bike pairs, and "Walking School Buses" (supervised groups of neighbourhood kids walking together safely).
 
 LANGUAGE ENFORCEMENT — HIGHEST PRIORITY:
 You MUST reply ONLY in natural, conversational WhatsApp-style Roman Urdu.
@@ -59,6 +62,14 @@ Do NOT reply in formal or literary Urdu.
 Do NOT switch to English-only responses.
 You may use common English words naturally where Pakistani users normally mix them into Roman Urdu (petrol, price, school, transport, fuel, walking, cost, group, online, physical, hybrid, schedule, etc.).
 Keep the response short, warm, natural, and conversational — like a friend texting on WhatsApp.
+Always address the user politely as "Aap" — never "tu" or "tum".
+
+SPELLING RULES — ABSOLUTE (never break these):
+- NEVER use "ck" or "k" for the soft "ch" sound.
+- ALWAYS write "bache" or "bachay" — NEVER "backe" or "backay".
+- ALWAYS write "acha" — NEVER "acka".
+- ALWAYS write "hai" — NEVER "he" or "hay".
+- ALWAYS write "nahi" — NEVER "nhe".
 
 LANGUAGE RULE — MOST IMPORTANT:
 Write in "Pakistani texting style" — this means 60-70% ENGLISH words with Urdu grammar connecting them.
@@ -69,17 +80,28 @@ petrol, price, school, walk, cost, free, zero, area, family, families, group, sh
 online, hybrid, app, registered, distance, km, litre, neighbours, safe, tension, schedule,
 timetable, saving, bachat, alert, notification
 
-USE URDU only for grammar connectors and simple words:
+USE URDU for grammar connectors and these natural, conversational words:
 hai, hain, ka, ki, ke, mein, ko, se, par, aur, but, toh, so, agar, jab, yeh, woh,
-aap, bache, ghar, din, mahina, rupay, bohat, thora, abhi, mat
+aap, bache, bachay, bachon, ghar, din, mahina, rupay, bohat, thora, abhi, mat,
+kharcha, madad, nahi, acha, achay, chahiye, karo, karein, sakte, sakti, jaate, mil kar
 
 STYLE RULES:
 1. Maximum 2 short sentences. Very simple. Easy to understand for someone who barely reads.
 2. Start with the person's first name.
 3. Be warm and reassuring — like a friend giving advice.
 4. Use digits for numbers: 343, 2500, 0.5 km.
-5. NO formal Urdu. NEVER say: "ilaqa", "paidal", "madad", "fikar", "khushkhabri", "ifrad", "munasib".
+5. NO formal Urdu. Avoid dense Arabic/Persian vocabulary — NEVER say: "ilaqa", "paidal", "fikar", "khushkhabri", "ifrad", "munasib", "akhrajaat", "taawoon", "qeemat", "izafa".
 6. NO complex grammar. Keep it dead simple.
+
+FORMAL WORD SWAPS (always use the natural word):
+- Use "kharcha" for expense — NEVER "akhrajaat".
+- Use "madad" for help — NEVER "taawoon".
+
+LOCATION HANDLING:
+When parents mention their area (e.g., Ghauri Town, Gulberg, Johar Town), immediately suggest
+practical, localized community solutions by matching them with the nearby families listed in
+"Current context" below. Use ONLY the families and data from the context — never invent
+families or locations outside the available data.
 
 GOOD EXAMPLES (copy this exact style):
 - "Ayesha, petrol 343 Rs/L hai right now. But tension mat lo — bache walk kar ke school jaate hain, cost zero!"
@@ -93,10 +115,14 @@ BAD EXAMPLES (NEVER write like this):
 - "Aap ke padosiyon ke saath mil kar safar karein" ← too much Urdu
 - "Bachon ko paidal school bhejna behtar hai" ← formal
 - "Fuel ki keemat 343 rupees per litre hai" ← too English, mix it
+- "Mere backe school nhe jaate, kharcha bohat he" ← wrong spelling (write: "Mere bache school nahi jaate, kharcha bohat hai")
 
 ACCURACY RULE:
 Only use facts from "Current context" below. Never guess or invent numbers.
-If you don't have the data to answer, say: "Yeh detail abhi available nahi hai, but main aap ki help kar sakta hoon."
+If "Nearby families" is 0 (or not shown), do NOT invent family counts — honestly say no families
+are registered yet and suggest inviting neighbours to join the app.
+Never promise to send lists, messages, or contact numbers — you are a chat assistant only.
+If you don't have the data to answer, say: "Yeh detail abhi available nahi hai, but main aap ki madad kar sakta hoon."
 
 CONTEXT you have:
 - Petrol price and whether it went up/down
@@ -106,21 +132,110 @@ CONTEXT you have:
 - Whether hybrid schedule is active
 
 TOPICS you help with:
-- Petrol prices and transport cost
-- Carpool / ride sharing
-- Walking groups
+- Petrol prices and transport cost (kharcha)
+- Carpool / ride sharing / bike pairs
+- Walking School Buses and walking groups
 - Savings calculations
 - Hybrid schedule
 - School transport questions
 """
 
+
+# -----------------------------------------------------------------
+# ROMAN-URDU RESPONSE SANITIZER — last-line spelling defence
+# -----------------------------------------------------------------
+
+# Word-boundary-aware phonetic spelling fixes. All patterns are \b-anchored so
+# substrings inside valid English words ("the", "help", "school", "check"...)
+# are never touched. Case of the matched word's first letter is preserved.
+_ROMAN_URDU_SPELLING_FIXES = [
+    (re.compile(r'\bbackay\b', re.IGNORECASE), 'bachay'),
+    (re.compile(r'\bbacke\b', re.IGNORECASE), 'bache'),
+    (re.compile(r'\backa\b', re.IGNORECASE), 'acha'),
+    (re.compile(r'\bnhe\b', re.IGNORECASE), 'nahi'),
+    (re.compile(r'\bhay\b', re.IGNORECASE), 'hai'),
+    # Standalone lowercase "he" in Roman-Urdu text is the copula "hai".
+    # Deliberately case-sensitive: a capitalized "He" is almost always the
+    # English pronoun, and "he's" (lookahead) stays English too.
+    (re.compile(r"\bhe\b(?!['’]s)"), 'hai'),
+]
+
+
+def sanitize_roman_urdu_response(text):
+    """Correct common phonetic misspellings in Roman-Urdu AI responses.
+
+    Conservative by design:
+    - "backe"/"backay" → "bache"/"bachay", "acka" → "acha", "nhe" → "nahi",
+      "hay" → "hai", standalone lowercase "he" → "hai".
+    - Word boundaries keep valid English words intact ("the", "help",
+      "school", "check", "haywire" are never modified).
+    - First-letter case is preserved ("Backe" → "Bache").
+    """
+    if not text:
+        return text
+    for pattern, replacement in _ROMAN_URDU_SPELLING_FIXES:
+        def _preserve_case(match, replacement=replacement):
+            word = match.group(0)
+            if word[:1].isupper():
+                return replacement[0].upper() + replacement[1:]
+            return replacement
+        text = pattern.sub(_preserve_case, text)
+    return text
+
+
+def normalize_chat_history(raw):
+    """Validate/normalize frontend chat history into Qwen message dicts.
+
+    Accepts turns like {'sender': 'user'|'bot', 'text': ...} or
+    {'role': 'user'|'assistant', 'content': ...}. Anything malformed is
+    dropped; only the most recent 8 turns are kept.
+    """
+    if not isinstance(raw, list):
+        return []
+    history = []
+    for turn in raw:
+        if not isinstance(turn, dict):
+            continue
+        role = str(turn.get('role') or turn.get('sender') or '').strip().lower()
+        content = str(turn.get('content') or turn.get('text') or '').strip()
+        if not content:
+            continue
+        if role in ('user', 'me'):
+            history.append({'role': 'user', 'content': content})
+        elif role in ('assistant', 'bot', 'ai'):
+            history.append({'role': 'assistant', 'content': content})
+    return history[-8:]
+
 # Try these in order — some Model Studio workspaces only expose a subset of
 # Qwen models, so if the first choice 404s/400s we retry with the next one
 # instead of silently dropping to the (English) rule-based fallback.
-QWEN_MODEL_CANDIDATES = ["qwen-turbo", "qwen-plus", "qwen-flash", "qwen-max"]
+# Spec preference is qwen-max or qwen-plus: qwen-plus leads (strong quality,
+# faster replies for live chat) and qwen-max backs it up; the light models
+# stay as emergency fallbacks.
+QWEN_MODEL_CANDIDATES = ["qwen-plus", "qwen-max", "qwen-turbo", "qwen-flash"]
 
 
-def _qwen_response(query, user_context, db_context, petrol):
+def _build_qwen_messages(query, context_msg, history=None):
+    """Assemble the Qwen chat payload.
+
+    Fixed order: system prompt → current-context system message →
+    (optional) recent conversation turns → current user query.
+    The language/system instructions always come BEFORE the user query.
+    """
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": f"Current context:\n{context_msg}"},
+    ]
+    for turn in (history or []):
+        role = turn.get('role')
+        content = (turn.get('content') or '').strip()
+        if role in ('user', 'assistant') and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": query})
+    return messages
+
+
+def _qwen_response(query, user_context, db_context, petrol, history=None):
     """Call Qwen API for a natural Roman-Urdu response. Returns None on total failure."""
     client = _get_qwen_client()
     if client is None:
@@ -147,13 +262,10 @@ def _qwen_response(query, user_context, db_context, petrol):
         try:
             response = client.chat.completions.create(
                 model=model_name,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "system", "content": f"Current context:\n{context_msg}"},
-                    {"role": "user", "content": query},
-                ],
+                messages=_build_qwen_messages(query, context_msg, history),
                 max_tokens=150,
-                temperature=0.7,
+                temperature=0.3,
+                top_p=0.8,
                 timeout=10,
             )
             answer = response.choices[0].message.content.strip()
@@ -488,13 +600,16 @@ def _rule_based_fallback(query, petrol, user_context, db_context):
 # MAIN DISPATCH — Qwen first, fallback if unavailable
 # -----------------------------------------------------------------
 
-def generate_response(query, petrol, user_context=None, db_context=None):
+def generate_response(query, petrol, user_context=None, db_context=None, history=None):
     """
     Generate a response for the parent.
 
     Flow:
     1. Try Qwen AI (if API key configured) → natural Roman-Urdu
     2. Fall back to rule-based engine → Roman-Urdu (no API needed)
+
+    `history` is an optional list of {'role','content'} turns from the
+    frontend chat so Qwen can understand follow-up questions.
 
     Returns (text, source) where source is 'qwen' or 'fallback', so callers
     can tell the difference instead of assuming Qwen always succeeded.
@@ -505,7 +620,7 @@ def generate_response(query, petrol, user_context=None, db_context=None):
         db_context = {}
 
     # Try Qwen AI first
-    qwen_answer = _qwen_response(query, user_context, db_context, petrol)
+    qwen_answer = _qwen_response(query, user_context, db_context, petrol, history)
     if qwen_answer:
         return qwen_answer, 'qwen'
 

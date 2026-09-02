@@ -49,6 +49,167 @@ function _pickUrduVoice(voices) {
            null;
 }
 
+// -----------------------------------------------------------------
+// TTS PHONETIC RESPELLING — so English voices don't spell Urdu words
+// -----------------------------------------------------------------
+// English speech engines misread common Roman-Urdu words — or worse, spell
+// them out letter-by-letter ("bache" → "b-a-c-h-e", "aap" → "a-a-p"). Before
+// handing text to an English voice, swap those words for phonetic spellings
+// that force the correct Pakistani pronunciation. All patterns are word-
+// boundary anchored, so English words are never touched ("se" in "select",
+// "lo" in "location", "me" in "message" stay intact).
+const _TTS_PHONETIC_MAP = [
+    // The worst offenders — engines spell these out letter-by-letter
+    [/\baap\b/gi, 'aahp'],
+    [/\bbache\b/gi, 'buh-chay'],
+    [/\bbachay\b/gi, 'buh-chay'],
+    [/\bbacho\b/gi, 'buh-cho'],
+    [/\bbacha\b/gi, 'buh-cha'],
+    [/\bbachi\b/gi, 'buh-chee'],
+    [/\bbachon\b/gi, 'buh-chon'],
+    [/\bbacchon\b/gi, 'buh-chon'],
+    // Copula + negation ("hai" would otherwise rhyme with "high")
+    [/\bhai\b/gi, 'hay'],
+    [/\bhain\b/gi, 'hay'],
+    [/\bnahi\b/gi, 'nuh-hee'],
+    [/\bnahin\b/gi, 'nuh-hee'],
+    // Verb forms
+    [/\bkaro\b/gi, 'kuh-ro'],
+    [/\bkarein\b/gi, 'kuh-ray'],
+    [/\bkarte\b/gi, 'kur-tay'],
+    [/\bkarti\b/gi, 'kur-tee'],
+    [/\bkarta\b/gi, 'kur-ta'],
+    [/\bsakte\b/gi, 'suk-tay'],
+    [/\bsakti\b/gi, 'suk-tee'],
+    [/\bsakta\b/gi, 'suk-ta'],
+    [/\bjaate\b/gi, 'jah-tay'],
+    [/\bjate\b/gi, 'jah-tay'],
+    [/\bjata\b/gi, 'juh-ta'],
+    [/\bjati\b/gi, 'juh-tee'],
+    [/\bjaana\b/gi, 'jah-na'],
+    [/\bjana\b/gi, 'juh-na'],
+    [/\bchal\b/gi, 'chul'],
+    [/\bchalo\b/gi, 'chuh-lo'],
+    [/\bchalein\b/gi, 'chuh-lay'],
+    [/\bchalen\b/gi, 'chuh-lay'],
+    [/\bchalta\b/gi, 'chul-ta'],
+    [/\bchalti\b/gi, 'chul-tee'],
+    [/\bbana\b/gi, 'buh-na'],
+    [/\bbane\b/gi, 'buh-nay'],
+    [/\bbani\b/gi, 'buh-nee'],
+    [/\bhua\b/gi, 'hoo-ah'],
+    [/\bhui\b/gi, 'hoo-ee'],
+    [/\brahe\b/gi, 'ruh-hay'],
+    [/\brahega\b/gi, 'ruh-hay-ga'],
+    [/\brahenge\b/gi, 'ruh-hay-gay'],
+    // Grammar words English engines misread ("se" would rhyme with "see")
+    [/\bmein\b/gi, 'mayn'],
+    [/\bke\b/gi, 'kay'],
+    [/\bko\b/gi, 'koh'],
+    [/\bse\b/gi, 'say'],
+    [/\byeh\b/gi, 'yay'],
+    [/\bkaise\b/gi, 'kay-say'],
+    [/\bkaisay\b/gi, 'kay-say'],
+    [/\bkaisa\b/gi, 'kay-sa'],
+    [/\bkaisi\b/gi, 'kay-see'],
+    // Everyday vocabulary
+    [/\babhi\b/gi, 'ub-hee'],
+    [/\bacha\b/gi, 'uh-cha'],
+    [/\bachay\b/gi, 'uh-chay'],
+    [/\bchahiye\b/gi, 'chah-hee-yay'],
+    [/\bmadad\b/gi, 'muh-dud'],
+    [/\bbohat\b/gi, 'bohut'],
+    [/\bbohot\b/gi, 'bohut'],
+    [/\bpaisa\b/gi, 'pie-sa'],
+    [/\bpaise\b/gi, 'pie-say'],
+    [/\bqareeb\b/gi, 'kuh-reeb'],
+    [/\bammi\b/gi, 'um-mee'],
+    [/\baaj\b/gi, 'aahj'],
+    [/\bdekho\b/gi, 'day-ko'],
+    [/\bdekh\b/gi, 'dayk'],
+    [/\bsuno\b/gi, 'soo-no'],
+    [/\bbatao\b/gi, 'buh-tao'],
+    [/\bdena\b/gi, 'day-na'],
+    // "will need / will happen" verb forms — engines garble these badly
+    [/\blagega\b/gi, 'luh-gay-ga'],
+    [/\blagegi\b/gi, 'luh-gay-gee'],
+    [/\blagenge\b/gi, 'luh-gay-gay'],
+    [/\blagta\b/gi, 'lug-ta'],
+    [/\blagi\b/gi, 'luh-gee'],
+    [/\blaga\b/gi, 'luh-ga'],
+    [/\bjayega\b/gi, 'juh-yay-ga'],
+    [/\bjayegi\b/gi, 'juh-yay-gee'],
+    [/\bjayenge\b/gi, 'juh-yay-gay'],
+    [/\bjaye\b/gi, 'juh-yay'],
+    [/\bjayen\b/gi, 'juh-yay'],
+    [/\bjao\b/gi, 'jah-o'],
+    [/\bhoga\b/gi, 'ho-ga'],
+    [/\bhogi\b/gi, 'ho-gee'],
+    [/\bhonge\b/gi, 'ho-gay'],
+    [/\bchalaoge\b/gi, 'chuh-laao-gay'],
+    [/\blenge\b/gi, 'lay-gay'],
+    [/\bgaya\b/gi, 'guh-ya'],
+    // Everyday vocabulary English engines misread
+    [/\bdoor\b/gi, 'dohr'],          // "far" — else read like a door
+    [/\baur\b/gi, 'or'],
+    [/\bgaari\b/gi, 'gaa-ree'],
+    [/\bkharcha\b/gi, 'kur-cha'],
+    [/\brupay\b/gi, 'roo-pay'],
+    [/\bmahina\b/gi, 'mu-hee-na'],
+    [/\bmahine\b/gi, 'mu-hee-nay'],
+    [/\bmehnga\b/gi, 'mehng-ah'],
+    [/\bmehengi\b/gi, 'meh-ngi'],
+    [/\bbachega\b/gi, 'buh-chay-ga'],
+    [/\bbachenge\b/gi, 'buh-chay-gay'],
+    [/\bbachao\b/gi, 'buh-chao'],
+    [/\bbachat\b/gi, 'buh-chut'],
+    [/\baadha\b/gi, 'aa-dha'],
+    [/\baadhi\b/gi, 'aa-dhee'],
+    [/\bkhabar\b/gi, 'kuh-bur'],
+    [/\bbarh\b/gi, 'burh'],
+    [/\bzaroorat\b/gi, 'zu-roo-rut'],
+    [/\baaram\b/gi, 'aa-ram'],
+    [/\bbaari\b/gi, 'baa-ree'],
+    [/\bthoda\b/gi, 'tho-da'],
+    [/\bthora\b/gi, 'tho-ra'],
+    [/\bthori\b/gi, 'tho-ree'],
+    [/\btheek\b/gi, 'teek'],
+    [/\blikho\b/gi, 'lee-kho'],
+    [/\bdabao\b/gi, 'duh-bao'],
+    [/\bbolo\b/gi, 'boh-lo'],
+    [/\bisi\b/gi, 'ee-see'],
+    [/\bphir\b/gi, 'fir'],
+    // Short grammar tokens (word-boundary anchored, so English words stay safe)
+    [/\bkar\b/gi, 'kur'],
+    [/\bja\b/gi, 'jah'],
+    [/\bab\b/gi, 'ub'],
+    [/\btoh\b/gi, 'toe'],
+    [/\bkoi\b/gi, 'koy'],
+    [/\bki\b/gi, 'kee'],
+    [/\ble\b/gi, 'lay'],
+    [/\blo\b/gi, 'loh'],
+    [/\bhi\b/gi, 'hee'],
+    [/\bbhi\b/gi, 'bhee'],
+    [/\bkya\b/gi, 'kyah'],
+    [/\bliye\b/gi, 'lee-yay'],
+    [/\bban\b/gi, 'bun'],
+    [/\bpar\b/gi, 'pur'],
+    [/\bkam\b/gi, 'kum'],
+    [/\bjab\b/gi, 'jub'],
+    // Greeting
+    [/\bwalaikum\b/gi, 'wa-lai-kum'],
+    [/\bassalam\b/gi, 'us-sa-lam'],
+];
+
+// Apply the phonetic map to text destined for an ENGLISH voice only.
+function _phoneticizeForTTS(text) {
+    let out = text;
+    for (const [pattern, replacement] of _TTS_PHONETIC_MAP) {
+        out = out.replace(pattern, replacement);
+    }
+    return out;
+}
+
 // Preload voices
 if (window.speechSynthesis) {
     speechSynthesis.onvoiceschanged = () => {
@@ -304,21 +465,30 @@ function speakResponse(text, source) {
 
     speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(clean);
-
-    // Qwen responses are Roman-Urdu — an actual Urdu voice (if the browser
-    // has one) pronounces this far more naturally than an English voice
-    // guessing at it. Rule-based fallback text is plain English, so keep
-    // the English voice for that.
-    if (source === 'qwen' && _cachedUrduVoice) {
-        utterance.voice = _cachedUrduVoice;
-        utterance.lang = _cachedUrduVoice.lang;
-        utterance.rate = 0.85;
+    // Voice choice: An Urdu voice (ur-PK) only works properly with Urdu SCRIPT
+    // (Arabic characters). Roman Urdu in Latin letters ("bacho ko", "aap ko")
+    // gets spelled out letter-by-letter by Urdu engines ("b-a-c-h-o", "a-a-p").
+    // So: use the Urdu voice ONLY when the text actually contains Urdu script;
+    // for Latin/Roman text always use the English voice with phonetic respelling.
+    const _hasUrduScript = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(clean);
+    let spoken = clean;
+    let voice = null;
+    let lang = 'en-US';
+    let rate = 0.90;
+    if (_cachedUrduVoice && _hasUrduScript) {
+        voice = _cachedUrduVoice;
+        lang = _cachedUrduVoice.lang;
+        rate = 0.85;
     } else {
-        utterance.lang = 'en-US';
-        utterance.rate = source === 'qwen' ? 0.80 : 0.90; // slower helps English voices with Roman-Urdu words
-        if (_cachedVoice) utterance.voice = _cachedVoice;
+        spoken = _phoneticizeForTTS(clean);
+        voice = _cachedVoice;
+        rate = source === 'qwen' ? 0.80 : 0.90; // slower helps English voices with Roman-Urdu words
     }
+
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    if (voice) utterance.voice = voice;
+    utterance.lang = lang;
+    utterance.rate = rate;
     utterance.pitch = 1.0;
 
     speechSynthesis.speak(utterance);

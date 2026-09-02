@@ -4,7 +4,7 @@
    loads instantly on repeat visits, even on flaky 3G networks.
    ============================================================ */
 
-const CACHE_NAME = 'safar-e-taleem-v2';
+const CACHE_NAME = 'safar-e-taleem-v3';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',

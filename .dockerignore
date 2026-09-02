@@ -1,0 +1,41 @@
+# Keep the image small and, most importantly, never bake secrets or the
+# local database into a public container.
+.git
+.gitignore
+.gitattributes
+.github
+
+# Python cruft
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Tests are not needed at runtime
+tests/
+
+# SECRETS — must never enter the image
+.env
+.env.local
+.env.*.local
+
+# Local SQLite database & instance folder (recreated + reseeded on boot)
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary/dev scripts
+_*.py
+
+# Virtual envs & editor/OS noise
+.venv/
+venv/
+env/
+node_modules/
+.qoder/
+*.log
+.DS_Store
+Thumbs.db

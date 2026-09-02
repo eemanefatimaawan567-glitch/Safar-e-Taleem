@@ -1,0 +1,91 @@
+student_id,student_name,neighborhood,latitude,longitude,grade,school,school_latitude,school_longitude,school_distance_km,cluster
+1,Omar,Bahria Town Phase 8,33.532793,73.161511,7,School A,33.54,73.16,0.81,0
+2,Omar,Bahria Town Phase 8,33.53635,73.153433,5,School A,33.54,73.16,0.73,0
+3,Ayesha,Bahria Town Phase 8,33.540659,73.155918,8,School A,33.54,73.16,0.39,0
+4,Sara,Bahria Town Phase 8,33.527703,73.157852,4,School A,33.54,73.16,1.38,0
+5,Mahnoor,Bahria Town Phase 8,33.529709,73.149234,4,School A,33.54,73.16,1.52,0
+6,Hamza,Bahria Town Phase 8,33.535196,73.153211,5,School A,33.54,73.16,0.83,0
+7,Iqra,Bahria Town Phase 8,33.53659,73.148532,8,School A,33.54,73.16,1.13,0
+8,Mahnoor,Bahria Town Phase 8,33.52825,73.156194,6,School A,33.54,73.16,1.35,0
+9,Zain,Bahria Town Phase 8,33.536279,73.147043,7,School A,33.54,73.16,1.27,0
+10,Amna,Bahria Town Phase 8,33.534008,73.146512,4,School A,33.54,73.16,1.42,0
+11,Ahmed,Bahria Town Phase 8,33.532967,73.146555,6,School A,33.54,73.16,1.47,0
+12,Mahnoor,Bahria Town Phase 8,33.530656,73.157232,7,School A,33.54,73.16,1.07,0
+13,Hamza,Bahria Town Phase 8,33.540131,73.149074,6,School A,33.54,73.16,1.01,0
+14,Sara,Bahria Town Phase 8,33.529716,73.158386,8,School A,33.54,73.16,1.15,0
+15,Noor,Bahria Town Phase 8,33.535547,73.149258,4,School A,33.54,73.16,1.11,0
+16,Zainab,Bahria Town Phase 8,33.533996,73.152622,8,School A,33.54,73.16,0.96,0
+17,Amna,Bahria Town Phase 8,33.538436,73.151525,6,School A,33.54,73.16,0.8,0
+18,Iqra,Bahria Town Phase 8,33.527524,73.151505,7,School A,33.54,73.16,1.6,0
+19,Faizan,Bahria Town Phase 8,33.531142,73.15956,3,School A,33.54,73.16,0.99,0
+20,Bilal,Bahria Town Phase 8,33.53154,73.148944,3,School A,33.54,73.16,1.39,0
+21,Omar,Bahria Town Phase 8,33.539156,73.149479,5,School A,33.54,73.16,0.98,0
+22,Ali,Bahria Town Phase 8,33.53811,73.157964,5,School A,33.54,73.16,0.28,0
+23,Usman,Bahria Town Phase 8,33.527985,73.152035,6,School A,33.54,73.16,1.53,0
+24,Ahmed,Bahria Town Phase 8,33.54061,73.156273,3,School A,33.54,73.16,0.35,0
+25,Hassan,Bahria Town Phase 8,33.527817,73.151276,5,School A,33.54,73.16,1.58,0
+26,Ayesha,Bahria Town Phase 8,33.536261,73.150696,3,School A,33.54,73.16,0.96,0
+27,Ayesha,Bahria Town Phase 8,33.532927,73.161847,3,School A,33.54,73.16,0.8,0
+28,Amna,Bahria Town Phase 8,33.538348,73.150076,5,School A,33.54,73.16,0.94,0
+29,Hira,Bahria Town Phase 8,33.535164,73.153141,6,School A,33.54,73.16,0.83,0
+30,Bilal,Bahria Town Phase 8,33.528526,73.146803,3,School A,33.54,73.16,1.77,0
+31,Hassan,G-11 Islamabad,33.67593,72.974537,7,School B,33.684,72.98,1.03,1
+32,Faizan,G-11 Islamabad,33.679537,72.969649,5,School B,33.684,72.98,1.08,1
+33,Hira,G-11 Islamabad,33.682017,72.980487,7,School B,33.684,72.98,0.23,1
+34,Mahnoor,G-11 Islamabad,33.67563,72.968088,6,School B,33.684,72.98,1.44,1
+35,Bilal,G-11 Islamabad,33.677564,72.980532,8,School B,33.684,72.98,0.72,1
+36,Laiba,G-11 Islamabad,33.672661,72.970047,7,School B,33.684,72.98,1.56,1
+37,Fatima,G-11 Islamabad,33.684672,72.966511,5,School B,33.684,72.98,1.25,1
+38,Zain,G-11 Islamabad,33.677579,72.969954,4,School B,33.684,72.98,1.17,1
+39,Usman,G-11 Islamabad,33.676302,72.981487,6,School B,33.684,72.98,0.87,1
+40,Laiba,G-11 Islamabad,33.676718,72.981949,6,School B,33.684,72.98,0.83,1
+41,Hamza,G-11 Islamabad,33.674929,72.974356,7,School B,33.684,72.98,1.14,1
+42,Hamza,G-11 Islamabad,33.675457,72.96699,4,School B,33.684,72.98,1.53,1
+43,Hassan,G-11 Islamabad,33.678943,72.967224,3,School B,33.684,72.98,1.31,1
+44,Mahnoor,G-11 Islamabad,33.68105,72.977291,4,School B,33.684,72.98,0.41,1
+45,Zainab,G-11 Islamabad,33.68667,72.970273,5,School B,33.684,72.98,0.95,1
+46,Sara,G-11 Islamabad,33.676814,72.970275,7,School B,33.684,72.98,1.2,1
+47,Omar,G-11 Islamabad,33.681017,72.976536,3,School B,33.684,72.98,0.46,1
+48,Iqra,G-11 Islamabad,33.673311,72.974531,7,School B,33.684,72.98,1.29,1
+49,Zainab,G-11 Islamabad,33.684634,72.971615,5,School B,33.684,72.98,0.78,1
+50,Laiba,G-11 Islamabad,33.682278,72.979352,6,School B,33.684,72.98,0.2,1
+51,Bilal,G-11 Islamabad,33.685948,72.972761,4,School B,33.684,72.98,0.7,1
+52,Noor,G-11 Islamabad,33.684303,72.977211,8,School B,33.684,72.98,0.26,1
+53,Iqra,G-11 Islamabad,33.682033,72.970057,4,School B,33.684,72.98,0.95,1
+54,Hamza,G-11 Islamabad,33.686615,72.974666,4,School B,33.684,72.98,0.57,1
+55,Hassan,G-11 Islamabad,33.68684,72.981847,7,School B,33.684,72.98,0.36,-1
+56,Usman,G-11 Islamabad,33.685022,72.969419,5,School B,33.684,72.98,0.99,1
+57,Laiba,G-11 Islamabad,33.682106,72.979947,8,School B,33.684,72.98,0.21,1
+58,Omar,G-11 Islamabad,33.683378,72.976673,3,School B,33.684,72.98,0.32,1
+59,Laiba,G-11 Islamabad,33.673486,72.980777,8,School B,33.684,72.98,1.17,1
+60,Ayesha,G-11 Islamabad,33.671047,72.968024,3,School B,33.684,72.98,1.82,1
+61,Noor,Satellite Town Rwp,33.617581,73.037173,4,School C,33.63,73.05,1.82,2
+62,Usman,Satellite Town Rwp,33.62857,73.045031,6,School C,33.63,73.05,0.49,2
+63,Iqra,Satellite Town Rwp,33.628895,73.038396,6,School C,33.63,73.05,1.08,2
+64,Ayesha,Satellite Town Rwp,33.623364,73.046507,3,School C,33.63,73.05,0.81,2
+65,Zain,Satellite Town Rwp,33.622429,73.043281,8,School C,33.63,73.05,1.05,2
+66,Sara,Satellite Town Rwp,33.621743,73.038504,8,School C,33.63,73.05,1.41,2
+67,Ahmed,Satellite Town Rwp,33.62379,73.048873,7,School C,33.63,73.05,0.7,2
+68,Ali,Satellite Town Rwp,33.625542,73.04383,7,School C,33.63,73.05,0.76,2
+69,Zainab,Satellite Town Rwp,33.621183,73.042587,5,School C,33.63,73.05,1.2,2
+70,Mahnoor,Satellite Town Rwp,33.629797,73.035298,6,School C,33.63,73.05,1.36,2
+71,Sara,Satellite Town Rwp,33.625019,73.039073,5,School C,33.63,73.05,1.15,2
+72,Hamza,Satellite Town Rwp,33.629464,73.049849,8,School C,33.63,73.05,0.06,2
+73,Ali,Satellite Town Rwp,33.632966,73.050018,6,School C,33.63,73.05,0.33,2
+74,Ali,Satellite Town Rwp,33.622211,73.040762,5,School C,33.63,73.05,1.22,2
+75,Ayesha,Satellite Town Rwp,33.620212,73.043509,8,School C,33.63,73.05,1.24,2
+76,Ahmed,Satellite Town Rwp,33.619055,73.04444,5,School C,33.63,73.05,1.32,2
+77,Fatima,Satellite Town Rwp,33.622225,73.039761,3,School C,33.63,73.05,1.28,2
+78,Bilal,Satellite Town Rwp,33.619686,73.045943,7,School C,33.63,73.05,1.21,2
+79,Noor,Satellite Town Rwp,33.622244,73.041316,3,School C,33.63,73.05,1.18,2
+80,Bilal,Satellite Town Rwp,33.627284,73.035906,3,School C,33.63,73.05,1.34,2
+81,Fatima,Satellite Town Rwp,33.627546,73.037708,8,School C,33.63,73.05,1.17,2
+82,Talha,Satellite Town Rwp,33.630233,73.04884,6,School C,33.63,73.05,0.11,2
+83,Zain,Satellite Town Rwp,33.626762,73.041616,3,School C,33.63,73.05,0.86,2
+84,Hamza,Satellite Town Rwp,33.619981,73.050309,6,School C,33.63,73.05,1.11,2
+85,Omar,Satellite Town Rwp,33.618121,73.039452,6,School C,33.63,73.05,1.64,2
+86,Mahnoor,Satellite Town Rwp,33.622726,73.047846,6,School C,33.63,73.05,0.83,2
+87,Faizan,Satellite Town Rwp,33.627466,73.035966,6,School C,33.63,73.05,1.33,2
+88,Fatima,Satellite Town Rwp,33.624082,73.045792,6,School C,33.63,73.05,0.76,2
+89,Hira,Satellite Town Rwp,33.619624,73.050113,8,School C,33.63,73.05,1.15,2
+90,Zain,Satellite Town Rwp,33.618157,73.040981,6,School C,33.63,73.05,1.56,2

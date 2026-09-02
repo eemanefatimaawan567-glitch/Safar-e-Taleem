@@ -3,7 +3,7 @@ import re
 import secrets
 import logging
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from modules.petrol_price import get_petrol_price as fetch_live_petrol_price
@@ -311,6 +311,19 @@ def index():
         total_savings=total_savings,
         total_students=total_students,
     )
+
+@app.route('/sw.js')
+def service_worker():
+    """Serve the service worker from the root scope so it can control '/'.
+
+    Browsers cap a service worker's scope at the directory it's served from,
+    so /static/sw.js could only cache /static/*. Serving it at /sw.js with the
+    Service-Worker-Allowed header unlocks app-wide offline caching.
+    """
+    response = send_from_directory('static', 'sw.js', mimetype='application/javascript')
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 @app.route('/login', methods=['GET', 'POST'])
 @csrf_protect
@@ -1136,4 +1149,6 @@ def notification_log():
 # ---------------------------------------------------------
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
-    app.run(debug=debug_mode, port=5001)
+    # PORT is injected by Render/Railway/Heroku; local dev defaults to 5001
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=debug_mode, port=port)

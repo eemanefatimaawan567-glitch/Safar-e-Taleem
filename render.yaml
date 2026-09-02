@@ -1,0 +1,22 @@
+# Render.com Blueprint — deploy Safar-e-Taleem in one click
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: safar-e-taleem
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      # Add your Alibaba Cloud DashScope key for the Qwen voice/chat AI
+      # (the app falls back to rule-based responses when unset)
+      - key: DASHSCOPE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

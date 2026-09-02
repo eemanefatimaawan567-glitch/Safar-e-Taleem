@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safar-e-Taleem | Smart School Transport for Pakistan</title>
+    <meta name="theme-color" content="#004D40">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -17,8 +20,10 @@
             <span>Safar-e-Taleem</span>
         </div>
         <div class="nav-actions">
-            <a href="/demo-login/parent" class="btn btn-outline">Demo: Parent</a>
-            <a href="/demo-login/principal" class="btn btn-primary">Demo: Principal</a>
+            <div class="nav-btn-cluster">
+                <a href="/demo-login/parent" class="btn btn-outline"><i class="fa-solid fa-user" style="font-size: 0.75rem;"></i> Parent</a>
+                <a href="/demo-login/principal" class="btn btn-primary"><i class="fa-solid fa-graduation-cap" style="font-size: 0.75rem;"></i> Principal</a>
+            </div>
         </div>
     </div>
 </header>
@@ -349,6 +354,7 @@
         <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="Ask Ammi/Abba AI" class="robot-img">
         <div class="bot-status-badge"></div>
     </div>
+    <div class="bot-tap-label">Tap to chat</div>
 </div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>

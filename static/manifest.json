@@ -1,0 +1,26 @@
+{
+  "name": "Safar-e-Taleem — Smart School Transport for Pakistan",
+  "short_name": "Safar-e-Taleem",
+  "description": "AI-powered school transport cost optimizer with fuel monitoring, walking groups, and Roman-Urdu voice assistance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8F9FA",
+  "theme_color": "#004D40",
+  "orientation": "any",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en-PK",
+  "icons": [
+    {
+      "src": "/static/images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -158,6 +158,11 @@ async function updatePrice() {
 
     } catch (e) {
         console.error('Fuel price fetch error:', e);
+        // Server unreachable — surface it via the offline banner (the SW may
+        // have served a cached page, masking the outage)
+        if (_isNetworkError(e)) {
+            _showOfflineNotice(_offlineMessage('Live fuel prices'));
+        }
         // Show error state — don't clear existing valid data
         const errEl = document.getElementById('fuel-error-msg');
         if (errEl) {
@@ -265,7 +270,13 @@ async function sendMessage() {
         if (chatHistory.length > 24) chatHistory = chatHistory.slice(-24);
         speakResponse(data.text_response, data.source);
     } catch (e) {
-        appendMessage("Sorry, I couldn't connect right now. Please try again.", 'bot');
+        if (_isNetworkError(e)) {
+            const msg = _offlineMessage('The AI assistant');
+            _showOfflineNotice(msg);
+            appendMessage("You're offline — I can't reach the server right now. Please check your connection and try again.", 'bot');
+        } else {
+            appendMessage("Sorry, I couldn't connect right now. Please try again.", 'bot');
+        }
     }
 }
 
@@ -505,7 +516,58 @@ function recordVoiceCommand() {
     }
 }
 
-/* ---------- PETROL HISTORY CHART (Canvas, no library) ---------- */
+/* ---------- OFFLINE / SERVER-UNREACHABLE HANDLING ---------- */
+
+// fetch() rejects with a TypeError when the server can't be reached. The
+// service worker still serves cached pages in that state, so a failed API
+// call is often the first visible sign the Flask app has stopped.
+function _isNetworkError(err) {
+    return err instanceof TypeError;
+}
+
+function _offlineMessage(action) {
+    return !navigator.onLine
+        ? action + ' is unavailable — you appear to be offline.'
+        : action + ' is unavailable — can\'t reach the Safar-e-Taleem server. Is the Flask app running? (python app.py)';
+}
+
+// Transient top banner shown whenever a network failure is detected.
+// Injected on demand so every page gets it without template changes.
+function _showOfflineNotice(message) {
+    let banner = document.getElementById('offline-notice');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offline-notice';
+        banner.className = 'offline-notice';
+        banner.setAttribute('role', 'alert');
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-plug-circle-xmark';
+        const text = document.createElement('span');
+        banner.appendChild(icon);
+        banner.appendChild(text);
+        document.body.appendChild(banner);
+    }
+    banner.querySelector('span').textContent = message;
+    banner.style.display = 'flex';
+    clearTimeout(banner._dismissTimer);
+    banner._dismissTimer = setTimeout(() => { banner.style.display = 'none'; }, 7000);
+}
+
+function _hideOfflineNotice() {
+    const banner = document.getElementById('offline-notice');
+    if (banner) banner.style.display = 'none';
+}
+
+// Clear the banner and refresh data as soon as connectivity returns
+window.addEventListener('online', () => {
+    _hideOfflineNotice();
+    // The fuel poll silently failed while offline — refresh immediately
+    if (document.getElementById('live-price')) updatePrice();
+});
+
+/* ---------- PETROL HISTORY CHART (Chart.js, canvas fallback) ---------- */
+
+let _petrolChart = null; // Chart.js instance — kept so reloads destroy cleanly
 
 async function loadPetrolChart() {
     const canvas = document.getElementById('petrol-chart');
@@ -522,94 +584,193 @@ async function loadPetrolChart() {
             badge.textContent = history.length + ' records';
         }
 
-        const ctx = canvas.getContext('2d');
-        const w = canvas.width = canvas.offsetWidth;
-        const h = canvas.height = 180;
-
         const prices = history.map(r => r.price);
         const labels = history.map(r => {
             const d = new Date(r.checked_at);
             return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
         });
 
-        const minP = Math.min(...prices) - 5;
-        const maxP = Math.max(...prices) + 5;
-        const range = maxP - minP || 1;
-
-        const padL = 50, padR = 16, padT = 20, padB = 30;
-        const chartW = w - padL - padR;
-        const chartH = h - padT - padB;
-
-        // Background
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(0, 0, w, h);
-
-        // Grid lines
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const y = padT + (chartH / 4) * i;
-            ctx.beginPath();
-            ctx.moveTo(padL, y);
-            ctx.lineTo(w - padR, y);
-            ctx.stroke();
-
-            // Price labels
-            const val = maxP - (range / 4) * i;
-            ctx.fillStyle = '#64748b';
-            ctx.font = '10px system-ui, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText('Rs ' + val.toFixed(0), padL - 6, y + 4);
+        // Chart.js when the CDN loaded; hand-drawn canvas otherwise (offline-safe)
+        if (window.Chart) {
+            _renderChartJs(canvas, labels, prices);
+        } else {
+            _renderCanvasFallback(canvas, labels, prices);
         }
-
-        // Draw line
-        ctx.strokeStyle = '#004D40';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-
-        const points = [];
-        for (let i = 0; i < prices.length; i++) {
-            const x = padL + (chartW / Math.max(prices.length - 1, 1)) * i;
-            const y = padT + chartH - ((prices[i] - minP) / range) * chartH;
-            points.push({ x, y });
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // Fill area under line
-        ctx.lineTo(points[points.length - 1].x, padT + chartH);
-        ctx.lineTo(points[0].x, padT + chartH);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(0, 77, 64, 0.1)';
-        ctx.fill();
-
-        // Draw dots + labels
-        for (let i = 0; i < points.length; i++) {
-            ctx.beginPath();
-            ctx.arc(points[i].x, points[i].y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = '#004D40';
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Date labels
-            ctx.fillStyle = '#64748b';
-            ctx.font = '9px system-ui, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(labels[i], points[i].x, h - 6);
-        }
-
-        // Current price label
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 11px system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('Rs ' + prices[prices.length - 1], points[points.length - 1].x + 8, points[points.length - 1].y + 4);
 
     } catch (e) {
         console.error('Chart error:', e);
     }
+}
+
+/* Chart.js render — tooltips, hover points, brand-colored gradient fill */
+function _renderChartJs(canvas, labels, prices) {
+    // Destroy previous instance so data reloads don't stack charts
+    if (_petrolChart) {
+        _petrolChart.destroy();
+        _petrolChart = null;
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    // Brand gradient fill under the line (Deep Emerald fading down)
+    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, 'rgba(0, 77, 64, 0.22)');
+    gradient.addColorStop(1, 'rgba(0, 77, 64, 0.02)');
+
+    _petrolChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Petrol Price',
+                data: prices,
+                borderColor: '#004D40',
+                backgroundColor: gradient,
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.35, // smooth curve between points
+                pointRadius: 3.5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#004D40',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: '#FF7A00',
+                pointHoverBorderColor: '#ffffff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false, // tooltip snaps to nearest x even between points
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#00332B',
+                    titleColor: '#ffffff',
+                    bodyColor: '#E8F5E9',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 10,
+                    displayColors: false,
+                    callbacks: {
+                        label: (item) => ' Rs ' + Number(item.parsed.y).toFixed(2) + ' / L',
+                        afterLabel: (item) => {
+                            const prev = item.dataIndex > 0 ? prices[item.dataIndex - 1] : null;
+                            if (prev == null) return '';
+                            const delta = prices[item.dataIndex] - prev;
+                            const sign = delta >= 0 ? '+' : '';
+                            return ' ' + sign + delta.toFixed(2) + ' vs previous';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { size: 10, family: 'system-ui, sans-serif' },
+                        maxRotation: 0,
+                        autoSkipPadding: 20,
+                    }
+                },
+                y: {
+                    beginAtZero: false,
+                    suggestedMin: Math.min(...prices) - 5,
+                    suggestedMax: Math.max(...prices) + 5,
+                    grid: {
+                        color: '#f1f5f9',
+                        drawTicks: false,
+                    },
+                    border: { display: false },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { size: 10, family: 'system-ui, sans-serif' },
+                        callback: (v) => 'Rs ' + v,
+                        padding: 8,
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* Hand-drawn fallback — used when the Chart.js CDN is unreachable */
+function _renderCanvasFallback(canvas, labels, prices) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.offsetWidth || 500;
+    const h = canvas.height = 180;
+
+    const minP = Math.min(...prices) - 5;
+    const maxP = Math.max(...prices) + 5;
+    const range = maxP - minP || 1;
+
+    const padL = 50, padR = 16, padT = 20, padB = 30;
+    const chartW = w - padL - padR;
+    const chartH = h - padT - padB;
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = padT + (chartH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(w - padR, y);
+        ctx.stroke();
+
+        const val = maxP - (range / 4) * i;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('Rs ' + val.toFixed(0), padL - 6, y + 4);
+    }
+
+    ctx.strokeStyle = '#004D40';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+
+    const points = [];
+    for (let i = 0; i < prices.length; i++) {
+        const x = padL + (chartW / Math.max(prices.length - 1, 1)) * i;
+        const y = padT + chartH - ((prices[i] - minP) / range) * chartH;
+        points.push({ x, y });
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.lineTo(points[points.length - 1].x, padT + chartH);
+    ctx.lineTo(points[0].x, padT + chartH);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0, 77, 64, 0.1)';
+    ctx.fill();
+
+    for (let i = 0; i < points.length; i++) {
+        ctx.beginPath();
+        ctx.arc(points[i].x, points[i].y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#004D40';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(labels[i], points[i].x, h - 6);
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Rs ' + prices[prices.length - 1], points[points.length - 1].x + 8, points[points.length - 1].y + 4);
 }
 
 /* ---------- PRINCIPAL: HYBRID SHIFT PREDICTOR ---------- */
@@ -645,7 +806,15 @@ function generateHybridTimetable() {
             }
         })
         .catch(err => {
-            output.innerHTML = `<p style="color: #ef4444;">Failed to toggle hybrid: ${err}</p>`;
+            if (_isNetworkError(err)) {
+                // Server unreachable — the SW may have served a cached page,
+                // so tell the user plainly instead of dumping a TypeError
+                const msg = _offlineMessage('Hybrid shift toggle');
+                _showOfflineNotice(msg);
+                output.innerHTML = '<p style="color: #ef4444;"><i class="fa-solid fa-plug-circle-xmark"></i> ' + msg + '</p>';
+            } else {
+                output.innerHTML = `<p style="color: #ef4444;">Failed to toggle hybrid: ${err}</p>`;
+            }
         });
 }
 
@@ -658,3 +827,14 @@ if (document.getElementById('live-price')) {
 
 // Load petrol history chart on principal page
 loadPetrolChart();
+
+/* ---------- PWA: SERVICE WORKER REGISTRATION ---------- */
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // Registered at root scope (Flask serves /static/sw.js with a
+        // Service-Worker-Allowed: / header from the /sw.js route)
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then((reg) => console.log('[SW] Registered, scope:', reg.scope))
+            .catch((err) => console.warn('[SW] Registration failed:', err));
+    });
+}

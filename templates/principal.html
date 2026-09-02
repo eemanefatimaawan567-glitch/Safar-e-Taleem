@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Principal Dashboard | Safar-e-Taleem</title>
+    <meta name="theme-color" content="#004D40">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -149,7 +152,7 @@
         </div>
 
         <div class="metric-grid">
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Registered Families</span>
                     <i class="fa-solid fa-user-graduate metric-icon"></i>
@@ -157,7 +160,7 @@
                 <div class="metric-value">{{ total_parents if total_parents else 0 }}</div>
                 <div class="metric-change">{{ total_students }} children enrolled</div>
             </div>
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Avg. Monthly Transport Cost</span>
                     <i class="fa-solid fa-gas-pump metric-icon"></i>
@@ -165,7 +168,7 @@
                 <div class="metric-value">Rs {{ "{:,.0f}".format(avg_monthly_cost) }}</div>
                 <div class="metric-change">Per household (live petrol price)</div>
             </div>
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Potential Hybrid Savings</span>
                     <i class="fa-solid fa-chart-line metric-icon"></i>
@@ -177,7 +180,7 @@
 
         <div class="split-grid">
 
-            <div class="panel-card">
+            <div class="panel-card ui-card">
                 <div class="panel-header">
                     <p class="panel-title"><i class="fa-solid fa-bus"></i> Transport Mode Breakdown</p>
                     <span class="badge">Live Census</span>
@@ -216,12 +219,14 @@
                 </div>
             </div>
 
-            <div class="panel-card">
+            <div class="panel-card ui-card">
                 <div class="panel-header">
                     <p class="panel-title"><i class="fa-solid fa-chart-line"></i> Petrol Price History</p>
                     <span class="badge" id="history-badge">Loading...</span>
                 </div>
-                <canvas id="petrol-chart" height="180" style="width: 100%; margin-top: 8px;"></canvas>
+                <div style="position: relative; height: 200px; margin-top: 8px;">
+                    <canvas id="petrol-chart" aria-label="Petrol price history chart" role="img"></canvas>
+                </div>
                 <div id="hybrid-shift-status" class="hybrid-shift-status" role="status">
                     <i class="fa-solid fa-school" aria-hidden="true"></i> Physical School Status: Normal — 5-Day Physical Schedule
                 </div>
@@ -235,7 +240,7 @@
 
         </div>
 
-        <div class="panel-card" id="study-pods" style="margin-top: 24px;">
+        <div class="panel-card ui-card" id="study-pods" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-house-laptop"></i> Mohallah Study Pods</p>
                 <span class="badge">{{ study_pods|length }} pod{{ 's' if study_pods|length != 1 }} formed</span>
@@ -247,7 +252,7 @@
             </p>
 
             <div class="metric-grid" style="margin-bottom: 20px;">
-                <div class="metric">
+                <div class="metric ui-card">
                     <div class="metric-header">
                         <span class="metric-label">Families With a Device</span>
                         <i class="fa-solid fa-mobile-screen metric-icon"></i>
@@ -255,7 +260,7 @@
                     <div class="metric-value">{{ device_owner_count }}</div>
                     <div class="metric-change">out of {{ total_parents }} registered</div>
                 </div>
-                <div class="metric">
+                <div class="metric ui-card">
                     <div class="metric-header">
                         <span class="metric-label">Families Matched</span>
                         <i class="fa-solid fa-people-roof metric-icon"></i>
@@ -263,7 +268,7 @@
                     <div class="metric-value" style="color: #004D40;">{{ families_covered_by_pods }}</div>
                     <div class="metric-change">into {{ study_pods|length }} pod{{ 's' if study_pods|length != 1 }}</div>
                 </div>
-                <div class="metric">
+                <div class="metric ui-card">
                     <div class="metric-header">
                         <span class="metric-label">Still Unmatched</span>
                         <i class="fa-solid fa-triangle-exclamation metric-icon"></i>
@@ -301,7 +306,7 @@
         </div>
 
         <!-- OFFLINE LEARNING PACKETS -->
-        <div class="panel-card" id="offline-packets" style="margin-top: 24px;">
+        <div class="panel-card ui-card" id="offline-packets" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-file-pdf"></i> Offline Learning Packets</p>
                 <span class="badge">Printable Curriculum</span>
@@ -325,7 +330,7 @@
         </div>
 
         <!-- WHATSAPP / SMS / IVR CURRICULUM DELIVERY -->
-        <div class="panel-card" id="whatsapp-sms" style="margin-top: 24px;">
+        <div class="panel-card ui-card" id="whatsapp-sms" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-brands fa-whatsapp"></i> WhatsApp / SMS / IVR Delivery</p>
                 <span class="badge" id="unmatched-badge">{{ unmatched_families|length }} families need it</span>
@@ -387,6 +392,7 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 <script>
@@ -457,7 +463,12 @@ async function broadcastCurriculum(channel) {
         // Refresh the notification log after sending
         refreshNotificationLog();
     } catch (e) {
-        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to send. Please try again.</span>';
+        if (_isNetworkError(e)) {
+            _showOfflineNotice(_offlineMessage('Curriculum broadcast'));
+            if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;"><i class="fa-solid fa-plug-circle-xmark"></i> ' + _offlineMessage('Broadcast') + '</span>';
+        } else {
+            if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to send. Please try again.</span>';
+        }
     }
 }
 
@@ -612,7 +623,12 @@ async function triggerPetrolSpike() {
             setTimeout(() => generateHybridTimetable(), 2000);
         }
     } catch (e) {
-        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to trigger spike.</span>';
+        if (_isNetworkError(e)) {
+            _showOfflineNotice(_offlineMessage('Petrol spike simulation'));
+            if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;"><i class="fa-solid fa-plug-circle-xmark"></i> Server unreachable.</span>';
+        } else if (statusEl) {
+            statusEl.innerHTML = '<span style="color: #ef4444;">Failed to trigger spike.</span>';
+        }
     }
 }
 
@@ -629,7 +645,12 @@ async function resetPetrolPrice() {
             _syncSpikeSlider(343);
         }
     } catch (e) {
-        if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;">Failed to reset.</span>';
+        if (_isNetworkError(e)) {
+            _showOfflineNotice(_offlineMessage('Petrol price reset'));
+            if (statusEl) statusEl.innerHTML = '<span style="color: #ef4444;"><i class="fa-solid fa-plug-circle-xmark"></i> Server unreachable.</span>';
+        } else if (statusEl) {
+            statusEl.innerHTML = '<span style="color: #ef4444;">Failed to reset.</span>';
+        }
     }
 }
 </script>

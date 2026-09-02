@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parent Dashboard | Safar-e-Taleem</title>
+    <meta name="theme-color" content="#004D40">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -102,7 +105,7 @@
         </div>
 
         <div class="metric-grid">
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Nearby Families</span>
                     <i class="fa-solid fa-location-dot metric-icon"></i>
@@ -110,7 +113,7 @@
                 <div class="metric-value">{{ nearby_count if nearby_count else 0 }}</div>
                 <div class="metric-change">{% if nearby_count %}In your neighborhood{% else %}Register with area to match{% endif %}</div>
             </div>
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Recommended Transport</span>
                     <i class="fa-solid fa-route metric-icon"></i>
@@ -118,7 +121,7 @@
                 <div class="metric-value" style="font-size: 1.2rem;">{{ recommendation }}</div>
                 <div class="metric-change">Based on {{ sample_distance }}km distance • DBSCAN clustered</div>
             </div>
-            <div class="metric">
+            <div class="metric ui-card">
                 <div class="metric-header">
                     <span class="metric-label">Carpool Monthly Savings</span>
                     <i class="fa-solid fa-leaf metric-icon"></i>
@@ -130,7 +133,7 @@
 
         <div class="split-grid">
 
-            <div class="panel-card">
+            <div class="panel-card ui-card">
                 <div class="panel-header">
                     <p class="panel-title"><i class="fa-solid fa-user-check"></i> Your Transport Cluster</p>
                     <span class="badge">{{ user_cluster_type }}</span>
@@ -198,7 +201,7 @@
                 </div>
             </div>
 
-            <div class="panel-card">
+            <div class="panel-card ui-card">
                 <div class="panel-header">
                     <p class="panel-title"><i class="fa-solid fa-robot"></i> Ask Ammi/Abba Assistant</p>
                 </div>
@@ -236,7 +239,7 @@
         </div>
         {% endif %}
 
-        <div class="panel-card" id="live-location" style="margin-top: 24px;">
+        <div class="panel-card ui-card" id="live-location" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-location-crosshairs"></i> Live Commute Tracking</p>
                 <span class="badge" id="sharing-status-badge">Not Sharing</span>
@@ -260,7 +263,7 @@
             <div id="pod-location-list"></div>
         </div>
 
-        <div class="panel-card" id="study-pod" style="margin-top: 24px;">
+        <div class="panel-card ui-card" id="study-pod" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-house-laptop"></i> Mohallah Study Pod</p>
                 {% if study_pod %}
@@ -382,6 +385,7 @@
         <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="Ask Ammi/Abba AI" class="robot-img">
         <div class="bot-status-badge"></div>
     </div>
+    <div class="bot-tap-label">Tap to chat</div>
 
 </div>
 
@@ -418,7 +422,12 @@ async function sendPodAlert() {
             statusEl.innerHTML = '<span style="color: #ef4444;">' + (data.error || 'Failed to send') + '</span>';
         }
     } catch (err) {
-        statusEl.innerHTML = '<span style="color: #ef4444;">Network error. Please try again.</span>';
+        if (_isNetworkError(err)) {
+            _showOfflineNotice(_offlineMessage('Pod alert'));
+            statusEl.innerHTML = '<span style="color: #ef4444;"><i class="fa-solid fa-plug-circle-xmark"></i> ' + _offlineMessage('Pod alert') + '</span>';
+        } else {
+            statusEl.innerHTML = '<span style="color: #ef4444;">Network error. Please try again.</span>';
+        }
     }
 
     btn.disabled = false;

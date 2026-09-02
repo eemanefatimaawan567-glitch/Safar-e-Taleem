@@ -140,6 +140,18 @@ TOPICS you help with:
 - School transport questions
 """
 
+# Final instruction injected as a system message immediately BEFORE the user
+# query — the position of strongest influence on the reply. System prompts at
+# the top of the payload can lose pull as conversation history grows, so the
+# language rule is re-asserted right at the generation point on every request.
+LANGUAGE_LOCK = (
+    "REMINDER — this overrides everything else: Reply ONLY in natural, "
+    "WhatsApp-style Roman Urdu. Latin/English letters only, NEVER Urdu script. "
+    "Short and warm like a text message, address the user as \"Aap\", "
+    "Pakistani texting style (English words + Urdu grammar). "
+    "NEVER reply in pure English. Maximum 2 short sentences."
+)
+
 
 # -----------------------------------------------------------------
 # ROMAN-URDU RESPONSE SANITIZER — last-line spelling defence
@@ -159,6 +171,12 @@ _ROMAN_URDU_SPELLING_FIXES = [
     # English pronoun, and "he's" (lookahead) stays English too.
     (re.compile(r"\bhe\b(?!['’]s)"), 'hai'),
 ]
+
+# Arabic/Urdu script codepoints. A reply containing these violates the
+# "Latin letters only" rule, so the attempt is treated as a failure and the
+# next model candidate is tried; the rule-based fallback (always Roman Urdu)
+# remains the final safety net.
+_URDU_SCRIPT_RE = re.compile(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]')
 
 
 def sanitize_roman_urdu_response(text):
@@ -219,8 +237,10 @@ def _build_qwen_messages(query, context_msg, history=None):
     """Assemble the Qwen chat payload.
 
     Fixed order: system prompt → current-context system message →
-    (optional) recent conversation turns → current user query.
-    The language/system instructions always come BEFORE the user query.
+    (optional) recent conversation turns → language lock → current user query.
+    The system instruction is always FIRST (base behaviour override) and
+    re-asserted LAST (strongest influence) so the model cannot drift out of
+    Roman Urdu even in long conversations.
     """
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -231,6 +251,9 @@ def _build_qwen_messages(query, context_msg, history=None):
         content = (turn.get('content') or '').strip()
         if role in ('user', 'assistant') and content:
             messages.append({"role": role, "content": content})
+    # Re-assert the Roman-Urdu lock right before the user query — the
+    # instruction with the strongest pull on the generated reply.
+    messages.append({"role": "system", "content": LANGUAGE_LOCK})
     messages.append({"role": "user", "content": query})
     return messages
 
@@ -271,6 +294,13 @@ def _qwen_response(query, user_context, db_context, petrol, history=None):
             answer = response.choices[0].message.content.strip()
             # Clean up any markdown or extra formatting
             answer = answer.replace('**', '').replace('*', '').replace('```', '')
+            if _URDU_SCRIPT_RE.search(answer):
+                # Model broke the "Latin letters only" rule — reject this
+                # attempt and fall through to the next candidate model. The
+                # rule-based fallback (always Roman Urdu) is the last resort.
+                print(f"[Qwen] '{model_name}' replied in Urdu script — rejecting, trying next model.")
+                last_error = 'response contained Urdu script'
+                continue
             if model_name != QWEN_MODEL_CANDIDATES[0]:
                 print(f"[Qwen] Note: '{QWEN_MODEL_CANDIDATES[0]}' didn't work, succeeded with '{model_name}' instead.")
             return answer

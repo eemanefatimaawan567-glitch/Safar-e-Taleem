@@ -16,7 +16,19 @@ from modules.curriculum import get_pack, get_all_packs, CURRICULUM_PACKS
 from modules.notification import send_notification
 from modules.schools import commute_distance_km, school_info
 from modules.geo_services import walking_route, geocode
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utcnow():
+    """Naive UTC timestamp — the replacement for the deprecated datetime.utcnow().
+
+    Every db.DateTime column below is naive, and SQLite hands back naive values,
+    so returning an AWARE datetime here would make comparisons like
+    `now - share.last_updated` raise TypeError at runtime. Stripping tzinfo keeps
+    the exact semantics of utcnow() without the DeprecationWarning.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 app = Flask(__name__)
 
@@ -71,7 +83,7 @@ class PetrolPrice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Float, nullable=False)
     source = db.Column(db.String(50), default='shell_pk')
-    checked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    checked_at = db.Column(db.DateTime, default=utcnow)
 
 
 
@@ -80,7 +92,7 @@ class HybridSchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_active = db.Column(db.Boolean, default=False)
     triggered_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    triggered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    triggered_at = db.Column(db.DateTime, default=utcnow)
     petrol_price_at_trigger = db.Column(db.Float, nullable=True)
     # Rotation: A=Mon/Wed/Fri physical, B=Tue/Thu physical
     group_a_days = db.Column(db.String(50), default='Mon, Wed, Fri')
@@ -112,7 +124,7 @@ class NotificationLog(db.Model):
     curriculum_level = db.Column(db.String(30), default='')
     status = db.Column(db.String(20), default='delivered')
     message_id = db.Column(db.String(100), default='')
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, default=utcnow)
 
 
 def _ensure_sqlite_column(table, column, ddl):
@@ -338,7 +350,7 @@ def rate_limit(max_requests, window_seconds):
 def get_current_user():
     user_id = session.get('user_id')
     if user_id:
-        return User.query.get(user_id)
+        return db.session.get(User, user_id)
     return None
 
 # Login-required decorator
@@ -537,9 +549,24 @@ def register():
 
     return render_template('register.html', csrf_token=csrf_token)
 
+# One-click judge access. This grants a REAL session with no credentials at all,
+# so it is a deliberate hole rather than an oversight: anyone who guesses the URL
+# becomes a principal and sees every child's live location. It stays on by
+# default because the demo depends on it, but it must be switched off for any
+# public deployment. The startup warning exists so that cannot be forgotten.
+DEMO_LOGIN_ENABLED = os.environ.get('DEMO_LOGIN', '1') != '0'
+if DEMO_LOGIN_ENABLED:
+    logger.warning(
+        'DEMO_LOGIN is enabled: /demo-login/<role> grants a full session with no '
+        'credentials. Set DEMO_LOGIN=0 before any public deployment.')
+
 @app.route('/demo-login/<role>')
 def demo_login(role):
     """One-click demo login for hackathon judges — no form, no password needed."""
+    if not DEMO_LOGIN_ENABLED:
+        # 404 rather than 403: a disabled feature should not advertise that it
+        # exists and is merely switched off.
+        abort(404)
     if role == 'parent':
         user = User.query.filter_by(email='ayesha@demo.com').first()
     elif role == 'principal':
@@ -952,7 +979,7 @@ def location_start():
         return jsonify({'error': coord_err}), 400
 
     share = LocationShare.query.filter_by(user_id=user.id).first()
-    now = datetime.utcnow()
+    now = utcnow()
     if not share:
         share = LocationShare(user_id=user.id)
         db.session.add(share)
@@ -988,7 +1015,7 @@ def location_ping():
         share.latitude = lat
     if lon is not None:
         share.longitude = lon
-    share.last_updated = datetime.utcnow()
+    share.last_updated = utcnow()
     db.session.commit()
 
     return jsonify({'updated': True, 'last_updated': share.last_updated.isoformat()})
@@ -1076,7 +1103,7 @@ def location_sos():
         return jsonify({'error': 'Start sharing location before sending an SOS'}), 400
 
     share.is_sos = True
-    share.sos_triggered_at = datetime.utcnow()
+    share.sos_triggered_at = utcnow()
     db.session.commit()
 
     notified = dispatch_sos_alerts(user, share)
@@ -1103,7 +1130,7 @@ def build_pod_payload(user):
       - Parent: self + pod-mates in the same walking/carpool cluster
       - Principal: every active commute / SOS in the school
     """
-    now = datetime.utcnow()
+    now = utcnow()
     results = []
 
     def build_entry(member_user, share, is_me=False, is_coordinator=False):
@@ -1137,7 +1164,7 @@ def build_pod_payload(user):
 
     elif user.role == 'principal':
         for share in LocationShare.query.filter_by(is_active=True).all():
-            member = User.query.get(share.user_id)
+            member = db.session.get(User, share.user_id)
             if not member:
                 continue
             entry = build_entry(member, share)

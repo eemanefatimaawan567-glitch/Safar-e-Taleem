@@ -6,14 +6,16 @@
    live safety map still renders when the network drops.
    ============================================================ */
 
-// Bumped to v4 because static/js/app.js changed. /static/* is served
-// stale-while-revalidate, so without a version bump every returning user would
-// be handed the OLD app.js on their first load after deploy and only get the fix
-// on the second. Renaming the cache makes the activate handler drop it outright.
-const CACHE_NAME = 'safar-e-taleem-v4';
+// Bumped to v5 because the precache list grew (principal-map.js) and
+// static/js/app.js changed. /static/* is served stale-while-revalidate, so
+// without a version bump every returning user would be handed the OLD files on
+// their first load after deploy and only get the fix on the second. Renaming the
+// cache makes the activate handler drop it outright.
+const CACHE_NAME = 'safar-e-taleem-v5';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
+  '/static/js/principal-map.js',
   '/static/images/logo.svg',
   '/static/images/favicon.svg',
   '/static/manifest.json',

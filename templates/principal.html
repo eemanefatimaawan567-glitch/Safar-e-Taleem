@@ -375,6 +375,22 @@
             </div>
         </div>
 
+        <!-- LIVE SAFETY MAP — every child currently commuting -->
+        <div class="panel-card ui-card" id="live-safety-map" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-map-location-dot"></i> Live Safety Map</p>
+                <span class="badge" id="map-live-count">0 on the move</span>
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                Every child currently sharing their commute, refreshed automatically.
+                <span style="color: #dc2626; font-weight: 600;">Red</span> is an active SOS,
+                <span style="color: #9ca3af; font-weight: 600;">grey</span> has not reported recently,
+                <span style="color: #16a34a; font-weight: 600;">green</span> is live.
+            </p>
+            <div id="principal-map" style="width: 100%; height: 380px; border-radius: 12px; border: 1px solid var(--border);"></div>
+            <div id="principal-map-status" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;"></div>
+        </div>
+
         {% if unmatched_families %}
         <div style="margin-top: 16px; padding: 14px; background: #fffbeb; border-radius: 12px; border: 1px solid #fde68a;">
             <p style="margin: 0 0 8px 0; font-size: 0.85rem; font-weight: 600; color: #92400e;">
@@ -392,8 +408,11 @@
 
 </div>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/principal-map.js') }}"></script>
 
 <script>
 // Poll for any active SOS alerts school-wide (safety oversight)

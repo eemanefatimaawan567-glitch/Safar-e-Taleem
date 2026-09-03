@@ -21,6 +21,30 @@
     let routeStep = 0;         // current index along the mock walking route
 
     // ---------------------------------------------------------
+    // RESILIENT FETCH — retry once with backoff before surfacing an
+    // error, so a single dropped packet never breaks the UI.
+    // ---------------------------------------------------------
+    async function fetchWithRetry(url, options = {}, retries = 1) {
+        let lastErr = null;
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                return await fetch(url, options);
+            } catch (err) {
+                lastErr = err;
+                if (attempt < retries) {
+                    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+                }
+            }
+        }
+        throw lastErr;
+    }
+
+    // Live-update transport: Server-Sent Events (real-time push) with an
+    // automatic fallback to classic polling if SSE isn't supported or fails.
+    let liveSource = null;
+    let usingPolling = false;
+
+    // ---------------------------------------------------------
     // HARDCODED MOCK WALKING ROUTE — Bahria Town Phase 4
     // Realistic GPS waypoints from home → school along streets.
     // Judges see a marker that actually moves along a road,
@@ -123,34 +147,92 @@
         }).join('');
     }
 
+    // Update the map, list and SOS banner from a pod payload (shared by the
+    // SSE stream and the polling fallback).
+    function handlePodData(data) {
+        const pod = (data && data.pod) || [];
+
+        renderList(pod);
+
+        const activeIds = new Set();
+        pod.forEach((entry) => {
+            upsertMarker(entry);
+            activeIds.add(entry.user_id);
+        });
+        if (map) removeStaleMarkers(activeIds);
+
+        const anySos = pod.some((e) => e.is_sos);
+        const banner = document.getElementById('sos-banner');
+        if (banner) {
+            banner.style.display = anySos ? 'flex' : 'none';
+            if (anySos) {
+                const names = pod.filter((e) => e.is_sos).map((e) => e.name).join(', ');
+                banner.querySelector('span').textContent = `SOS alert from: ${names}. Please reach out immediately.`;
+            }
+        }
+    }
+
+    // Polling fallback — retries once, then surfaces the outage instead of
+    // failing silently forever.
     async function refreshPod() {
         try {
-            const res = await fetch('/api/location/pod');
+            const res = await fetchWithRetry('/api/location/pod');
             if (!res.ok) return;
-            const data = await res.json();
-            const pod = data.pod || [];
-
-            renderList(pod);
-
-            const activeIds = new Set();
-            pod.forEach((entry) => {
-                upsertMarker(entry);
-                activeIds.add(entry.user_id);
-            });
-            if (map) removeStaleMarkers(activeIds);
-
-            const anySos = pod.some((e) => e.is_sos);
-            const banner = document.getElementById('sos-banner');
-            if (banner) {
-                banner.style.display = anySos ? 'flex' : 'none';
-                if (anySos) {
-                    const names = pod.filter((e) => e.is_sos).map((e) => e.name).join(', ');
-                    banner.querySelector('span').textContent = `SOS alert from: ${names}. Please reach out immediately.`;
-                }
-            }
+            handlePodData(await res.json());
         } catch (e) {
-            // Silent fail — polling will retry
+            // Only surface persistent network failures — one dropped packet
+            // shouldn't flash an error banner at parents mid-commute.
+            if (typeof _isNetworkError === 'function' && _isNetworkError(e) &&
+                typeof _showOfflineNotice === 'function') {
+                _showOfflineNotice(_offlineMessage('Live commute tracking'));
+            } else {
+                console.error('Pod location fetch failed:', e);
+            }
         }
+    }
+
+    // ---------------------------------------------------------
+    // REAL-TIME UPDATES — SSE stream with polling fallback
+    // ---------------------------------------------------------
+    function startLiveUpdates() {
+        if (typeof EventSource === 'undefined') {
+            startPolling();
+            return;
+        }
+        try {
+            const source = new EventSource('/api/location/stream');
+            liveSource = source;
+            source.onmessage = (event) => {
+                try {
+                    handlePodData(JSON.parse(event.data));
+                } catch (_) { /* malformed frame — the next one will fix it */ }
+            };
+            // The server cycles the stream on purpose (worker-friendly) —
+            // EventSource reconnects automatically. Only switch to polling
+            // when the stream itself is fatally closed.
+            source.onerror = () => {
+                if (source.readyState === EventSource.CLOSED) {
+                    stopLiveUpdates();
+                    startPolling();
+                }
+            };
+        } catch (_) {
+            startPolling();
+        }
+    }
+
+    function stopLiveUpdates() {
+        if (liveSource) {
+            liveSource.close();
+            liveSource = null;
+        }
+    }
+
+    function startPolling() {
+        if (usingPolling || pollTimer) return;
+        usingPolling = true;
+        refreshPod();
+        pollTimer = setInterval(refreshPod, POLL_MS);
     }
 
     // -----------------------------------------------------
@@ -203,11 +285,17 @@
 
         if (!sharing) {
             const pos = await getPosition();
-            const res = await fetch('/api/location/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pos),
-            });
+            let res;
+            try {
+                res = await fetchWithRetry('/api/location/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pos),
+                }, 2);
+            } catch (err) {
+                alert('Could not start sharing — network problem. Please try again.');
+                return;
+            }
             if (!res.ok) { alert('Could not start sharing.'); return; }
 
             sharing = true;
@@ -220,16 +308,18 @@
 
             pingTimer = setInterval(async () => {
                 const p = await getPosition();
-                fetch('/api/location/ping', {
+                fetchWithRetry('/api/location/ping', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(p),
-                }).catch(() => {});
+                }, 1).catch(() => { /* retried once already — the next ping retries */ });
             }, PING_MS);
 
             refreshPod();
         } else {
-            await fetch('/api/location/stop', { method: 'POST' });
+            try {
+                await fetchWithRetry('/api/location/stop', { method: 'POST' }, 1);
+            } catch (_) { /* best effort — the server auto-stops stale shares */ }
             sharing = false;
             clearInterval(pingTimer);
             simulatedPos = null;
@@ -255,13 +345,27 @@
         if (!sharing) return;
 
         if (sosBtn.classList.contains('active')) {
-            await fetch('/api/location/sos-clear', { method: 'POST' });
-            sosBtn.classList.remove('active');
-            sosBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> SOS — Need Help';
+            try {
+                await fetchWithRetry('/api/location/sos-clear', { method: 'POST' }, 1);
+                sosBtn.classList.remove('active');
+                sosBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> SOS — Need Help';
+            } catch (_) { /* keep the SOS active if clearing fails — safer */ }
         } else {
-            await fetch('/api/location/sos', { method: 'POST' });
-            sosBtn.classList.add('active');
-            sosBtn.innerHTML = '<i class="fa-solid fa-check"></i> SOS Sent — Tap to Cancel';
+            // SOS is an emergency path — retry harder than usual
+            let ok = false;
+            for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+                try {
+                    const res = await fetch('/api/location/sos', { method: 'POST' });
+                    ok = res.ok;
+                } catch (_) { /* retry */ }
+                if (!ok) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+            }
+            if (ok) {
+                sosBtn.classList.add('active');
+                sosBtn.innerHTML = '<i class="fa-solid fa-check"></i> SOS Sent — Tap to Cancel';
+            } else {
+                alert('SOS could not be sent — check your connection and try again.');
+            }
         }
         refreshPod();
     }
@@ -273,7 +377,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (!document.getElementById('location-map')) return; // page doesn't use this feature
         initMap();
-        refreshPod();
-        pollTimer = setInterval(refreshPod, POLL_MS);
+        // Real-time first (SSE) — automatically falls back to polling
+        startLiveUpdates();
     });
 })();

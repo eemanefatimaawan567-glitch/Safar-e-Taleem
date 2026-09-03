@@ -59,9 +59,11 @@ The result:
 TOOL 4: LIVE SAFETY TRACKING + SOS
 ----------------------------------------------------
 Parents share their child's live GPS location (Leaflet.js map) with
-pod-mates during the walk or carpool to school. One tap on SOS sends
-an instant emergency alert to the whole group and the principal's
-dashboard. Commutes end when children arrive safely.
+pod-mates during the walk or carpool to school — updates push in real
+time over server-sent events (no polling lag). One tap on SOS sends an
+instant emergency alert to the whole group and the principal's
+dashboard, with a live OpenStreetMap location link. Commutes end when
+children arrive safely.
 
 ----------------------------------------------------
 TOOL 5: MOHALLAH STUDY PODS
@@ -77,15 +79,20 @@ TOOL 6: OFFLINE LEARNING PACKETS + WHATSAPP/SMS/IVR
 No child misses online days: principals generate printable curriculum
 PDFs (Primary/Middle/Secondary, federal board aligned) and broadcast
 summaries via WhatsApp, SMS, or IVR voice calls to families without
-devices — with a full delivery log.
+devices — through the real Meta WhatsApp Cloud API and Pakistani HTTP
+SMS gateways when configured, with a zero-setup simulation mode so the
+demo always works — plus a full delivery log and an in-app alert feed.
 
 ----------------------------------------------------
 ENGINEERING & DEPLOYMENT
 ----------------------------------------------------
 - PWA: installable app with offline-first service worker (works on
   flaky 3G, caches the app shell, friendly offline banners)
-- Tested: 32 pytest unit tests covering the clustering engine,
-  Haversine distance, and carpool economics
+- Tested: full pytest suite — clustering engine, Haversine distance,
+  carpool economics, geo services, notification providers, AI fallbacks,
+  petrol pricing, curriculum content, and 68 API/integration tests
+  (auth + CSRF, registration validation, SOS dispatch, pod coordination,
+  SSE stream, rate limiting) against a throwaway seeded database
 - One-click deploy: render.yaml blueprint + Procfile (gunicorn)
 - Tech stack: Flask + SQLite + scikit-learn DBSCAN + Leaflet.js +
   Chart.js + Alibaba Qwen AI + Web Speech API + xhtml2pdf

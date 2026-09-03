@@ -1,10 +1,14 @@
 import os
 import re
+import json
+import time
 import secrets
 import logging
+from collections import deque
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, abort, send_from_directory, Response, stream_with_context
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text as _sql_text
 from werkzeug.security import generate_password_hash, check_password_hash
 from modules.petrol_price import get_petrol_price as fetch_live_petrol_price
 from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, distance_km, cluster_families, form_study_pods
@@ -13,12 +17,25 @@ from modules.notification import send_notification
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'safar-e-taleem-dev-key-change-in-prod')
+
+# --- Security: never run with a known/shared secret ----------------------
+# An explicit SECRET_KEY (env var / platform-generated) is always preferred.
+# When none is set we generate a strong ephemeral key instead of shipping the
+# old hardcoded default — sessions then reset on restart, which is safe.
+if os.environ.get('SECRET_KEY'):
+    app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+else:
+    app.config['SECRET_KEY'] = secrets.token_hex(32)
+    logging.getLogger('safar-e-taleem').warning(
+        'SECRET_KEY not set — using an ephemeral key (sessions reset on restart). '
+        'Set SECRET_KEY in production.')
 
 # Logging setup — warnings and above
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('safar-e-taleem')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# DATABASE_URL lets tests/deployments point at a different database
+# (defaults to the local SQLite file).
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -42,6 +59,9 @@ class User(db.Model):
     children_count = db.Column(db.Integer, default=1)
     school_name = db.Column(db.String(150), default='')
     has_smart_device = db.Column(db.Boolean, default=True)  # for Mohallah Study Pods matching
+    # Contact number (Pakistani mobile, e.g. 03001234567) used for real
+    # WhatsApp/SMS/IVR delivery. Falls back to the CNIC stand-in when empty.
+    phone = db.Column(db.String(20), default='')
 
 
 class PetrolPrice(db.Model):
@@ -93,9 +113,25 @@ class NotificationLog(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+def _ensure_sqlite_column(table, column, ddl):
+    """Lightweight migration: add `column` to an existing SQLite table.
+
+    db.create_all() only creates missing tables — it never alters existing
+    ones, so a database created before the `phone` column existed would
+    crash on access. This no-ops when the column is already present.
+    """
+    with db.engine.connect() as conn:
+        columns = [row[1] for row in conn.execute(_sql_text(f'PRAGMA table_info({table})'))]
+        if column not in columns:
+            conn.execute(_sql_text(ddl))
+            conn.commit()
+
+
 # Initialize Database
 with app.app_context():
     db.create_all()
+    # Migrate databases created before User.phone existed
+    _ensure_sqlite_column('user', 'phone', "ALTER TABLE user ADD COLUMN phone VARCHAR(20) DEFAULT ''")
     # Seed initial petrol price if table is empty
     if PetrolPrice.query.count() == 0:
         db.session.add(PetrolPrice(price=343.00, source='seed'))
@@ -228,6 +264,74 @@ def validate_cnic(cnic_str):
     pattern = r"^\d{5}-\d{7}-\d{1}$"
     return bool(re.match(pattern, cnic_str)) if cnic_str else False
 
+
+# ---------------------------------------------------------
+# INPUT VALIDATION — email / phone / coordinates
+# ---------------------------------------------------------
+EMAIL_RE = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+# Pakistani mobile: 03XXXXXXXXX, +923XXXXXXXXX or 923XXXXXXXXX
+PHONE_RE = re.compile(r'^\+?92\d{10}$|^03\d{9}$')
+
+MIN_PASSWORD_LENGTH = 8
+
+
+def validate_email(email_str):
+    return bool(email_str) and bool(EMAIL_RE.match(email_str.strip()))
+
+
+def validate_phone(phone_str):
+    return bool(phone_str) and bool(PHONE_RE.match(phone_str.strip()))
+
+
+def parse_coordinates(data):
+    """Validate lat/lon from a JSON body against real-world bounds.
+
+    Returns (lat, lon, error_message) — error_message is None on success.
+    """
+    try:
+        lat = float(data.get('latitude'))
+        lon = float(data.get('longitude'))
+    except (TypeError, ValueError):
+        return None, None, 'latitude and longitude must be numbers'
+    if not (-90.0 <= lat <= 90.0):
+        return None, None, 'latitude must be between -90 and 90'
+    if not (-180.0 <= lon <= 180.0):
+        return None, None, 'longitude must be between -180 and 180'
+    return lat, lon, None
+
+
+# ---------------------------------------------------------
+# RATE LIMITING — lightweight in-memory sliding window
+# ---------------------------------------------------------
+# Single-process guard (SQLite app, one gunicorn worker): enough for this
+# deployment shape and trivially swappable for Redis later. Disabled when
+# RATE_LIMIT_DISABLED is set (used by the test suite).
+_rate_limit_store = {}
+
+
+def rate_limit(max_requests, window_seconds):
+    """Reject requests exceeding `max_requests` per `window_seconds` per client."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if os.environ.get('RATE_LIMIT_DISABLED'):
+                return f(*args, **kwargs)
+            identity = session.get('user_id') or request.remote_addr or 'anonymous'
+            key = (request.endpoint, identity)
+            now = time.time()
+            bucket = _rate_limit_store.get(key)
+            if bucket is None:
+                bucket = _rate_limit_store[key] = deque()
+            while bucket and now - bucket[0] > window_seconds:
+                bucket.popleft()
+            if len(bucket) >= max_requests:
+                logger.warning('Rate limit hit on %s by %s', request.path, identity)
+                return jsonify({'error': 'Too many requests. Please wait a moment and try again.'}), 429
+            bucket.append(now)
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 # Helper function to get currently logged-in user object
 def get_current_user():
     user_id = session.get('user_id')
@@ -326,6 +430,7 @@ def service_worker():
     return response
 
 @app.route('/login', methods=['GET', 'POST'])
+@rate_limit(15, 60)
 @csrf_protect
 def login():
     csrf_token = generate_csrf_token()
@@ -348,19 +453,41 @@ def login():
     return render_template('login.html', csrf_token=csrf_token)
 
 @app.route('/register', methods=['GET', 'POST'])
+@rate_limit(10, 60)
 @csrf_protect
 def register():
     csrf_token = generate_csrf_token()
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        password = request.form.get('password')
+        name = (request.form.get('name') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
         role = request.form.get('role', 'parent')
         cnic = request.form.get('cnic')
+        phone = (request.form.get('phone') or '').strip()
+
+        # Basic completeness check
+        if not name or not email:
+            return render_template('register.html', error="Name and email are required.", csrf_token=csrf_token)
+
+        # Email format validation
+        if not validate_email(email):
+            return render_template('register.html', error="Invalid email address. Example: fatima@gmail.com", csrf_token=csrf_token)
+
+        # Password strength
+        if len(password) < MIN_PASSWORD_LENGTH:
+            return render_template('register.html', error=f"Password must be at least {MIN_PASSWORD_LENGTH} characters long.", csrf_token=csrf_token)
+
+        # Role whitelist
+        if role not in ('parent', 'principal'):
+            return render_template('register.html', error="Invalid role.", csrf_token=csrf_token)
 
         # CNIC Validation Check
         if not validate_cnic(cnic):
             return render_template('register.html', error="Invalid CNIC format. Format must be 35201-1234567-1.", csrf_token=csrf_token)
+
+        # Optional phone — validated when provided (used for WhatsApp/SMS/IVR)
+        if phone and not validate_phone(phone):
+            return render_template('register.html', error="Invalid phone number. Use a Pakistani mobile like 03001234567.", csrf_token=csrf_token)
 
         # Check existing user
         if User.query.filter_by(email=email).first():
@@ -369,6 +496,12 @@ def register():
         if User.query.filter_by(cnic=cnic).first():
             return render_template('register.html', error="CNIC is already registered.", csrf_token=csrf_token)
 
+        # Children count — sanity-clamp to 1..10
+        try:
+            children_count = min(max(int(request.form.get('children_count', 1) or 1), 1), 10)
+        except (TypeError, ValueError):
+            children_count = 1
+
         # Create user
         new_user = User(
             name=name,
@@ -376,12 +509,13 @@ def register():
             password=generate_password_hash(password),
             role=role,
             cnic=cnic,
+            phone=phone,
             is_verified=True,
             address=request.form.get('address', ''),
             neighborhood=request.form.get('neighborhood', ''),
             latitude=request.form.get('latitude') or None,
             longitude=request.form.get('longitude') or None,
-            children_count=int(request.form.get('children_count', 1)),
+            children_count=children_count,
             school_name=request.form.get('school_name', ''),
             has_smart_device=(request.form.get('has_smart_device') == 'yes')
         )
@@ -586,6 +720,7 @@ def get_petrol_history():
 
 
 @app.route('/api/demo/petrol-spike', methods=['POST'])
+@rate_limit(10, 60)
 def demo_petrol_spike():
     """Demo mode: inject a fake petrol price spike for hackathon judges.
     POST body: { 'price': 380 } — inserts this price into the DB,
@@ -610,6 +745,7 @@ def demo_petrol_spike():
 
 
 @app.route('/api/demo/petrol-reset', methods=['POST'])
+@rate_limit(10, 60)
 def demo_petrol_reset():
     """Demo mode: reset petrol price back to normal for a clean demo restart."""
     user = get_current_user()
@@ -632,6 +768,7 @@ def demo_petrol_reset():
     })
 
 @app.route('/api/ask-ammi-abba', methods=['POST'])
+@rate_limit(30, 60)
 def ask_ammi_abba():
     from modules.ai_responses import (
         generate_response,
@@ -790,14 +927,14 @@ STALE_AFTER_SECONDS = 300  # 5 minutes — a marker turns amber/grey after this
 
 @app.route('/api/location/start', methods=['POST'])
 @login_required
+@rate_limit(60, 60)
 def location_start():
     """Start sharing live commute location (parent, on behalf of their child)."""
     user = get_current_user()
     data = request.json or {}
-    lat = data.get('latitude')
-    lon = data.get('longitude')
-    if lat is None or lon is None:
-        return jsonify({'error': 'latitude and longitude are required'}), 400
+    lat, lon, coord_err = parse_coordinates(data)
+    if coord_err:
+        return jsonify({'error': coord_err}), 400
 
     share = LocationShare.query.filter_by(user_id=user.id).first()
     now = datetime.utcnow()
@@ -819,12 +956,14 @@ def location_start():
 
 @app.route('/api/location/ping', methods=['POST'])
 @login_required
+@rate_limit(120, 60)
 def location_ping():
     """Periodic location update sent while sharing is active."""
     user = get_current_user()
     data = request.json or {}
-    lat = data.get('latitude')
-    lon = data.get('longitude')
+    lat, lon, coord_err = parse_coordinates(data)
+    if coord_err:
+        return jsonify({'error': coord_err}), 400
 
     share = LocationShare.query.filter_by(user_id=user.id).first()
     if not share or not share.is_active:
@@ -842,6 +981,7 @@ def location_ping():
 
 @app.route('/api/location/stop', methods=['POST'])
 @login_required
+@rate_limit(30, 60)
 def location_stop():
     """Stop sharing (arrived safely / commute finished)."""
     user = get_current_user()
@@ -854,10 +994,67 @@ def location_stop():
     return jsonify({'stopped': True})
 
 
+def recipient_phone(user):
+    """Best-effort contact number for notifications: the registered phone
+    when present, else the CNIC digit stand-in (demo mode)."""
+    if user is None:
+        return ''
+    if getattr(user, 'phone', ''):
+        return user.phone
+    return (user.cnic or '').replace('-', '')
+
+
+def dispatch_sos_alerts(user, share):
+    """Send SOS notifications (WhatsApp) to pod-mates and every principal.
+
+    Best-effort: the SOS flag itself is already saved — a dispatch failure
+    must never break the emergency signal. Returns the number of people notified.
+    """
+    notified = 0
+    try:
+        recipients = get_family_pod_members(user)
+        principals = User.query.filter_by(role='principal').all()
+
+        location_url = (
+            f"https://www.openstreetmap.org/?mlat={share.latitude}&mlon={share.longitude}"
+            f"#map=17/{share.latitude}/{share.longitude}"
+        ) if share.latitude is not None else 'location unavailable'
+
+        content = (
+            f"🚨 SOS ALERT from {user.name} on the school commute! "
+            f"Live location: {location_url} — please reach out immediately."
+        )
+
+        for person in list(recipients) + list(principals):
+            phone = recipient_phone(person)
+            result = send_notification('whatsapp', phone, content)
+            db.session.add(NotificationLog(
+                recipient_id=person.id,
+                recipient_name=person.name,
+                recipient_phone=phone,
+                channel='whatsapp',
+                content_preview=f'SOS: {content[:180]}',
+                curriculum_level='sos-alert',
+                status=result.get('status', 'sent'),
+                message_id=result.get('message_id', ''),
+            ))
+            notified += 1
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning('SOS dispatch failed (SOS flag still saved): %s', e)
+    return notified
+
+
 @app.route('/api/location/sos', methods=['POST'])
 @login_required
+@rate_limit(30, 60)
 def location_sos():
-    """Trigger an SOS — instantly visible to pod-mates, route captain, and principal."""
+    """Trigger an SOS — instantly visible to pod-mates, route captain, and principal.
+
+    Also dispatches emergency notifications (WhatsApp channel) to the pod
+    and all principals, logged in NotificationLog.
+    """
     user = get_current_user()
     share = LocationShare.query.filter_by(user_id=user.id).first()
     if not share or not share.is_active:
@@ -866,11 +1063,14 @@ def location_sos():
     share.is_sos = True
     share.sos_triggered_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({'sos': True})
+
+    notified = dispatch_sos_alerts(user, share)
+    return jsonify({'sos': True, 'notified': notified})
 
 
 @app.route('/api/location/sos-clear', methods=['POST'])
 @login_required
+@rate_limit(30, 60)
 def location_sos_clear():
     """Clear an SOS (false alarm / resolved)."""
     user = get_current_user()
@@ -882,15 +1082,12 @@ def location_sos_clear():
     return jsonify({'cleared': True})
 
 
-@app.route('/api/location/pod', methods=['GET'])
-@login_required
-def location_pod():
+def build_pod_payload(user):
     """
-    Returns live locations for the current user's commute pod:
+    Live locations for the current user's commute pod:
       - Parent: self + pod-mates in the same walking/carpool cluster
-      - Principal: any active SOS anywhere in the school
+      - Principal: every active commute / SOS in the school
     """
-    user = get_current_user()
     now = datetime.utcnow()
     results = []
 
@@ -932,11 +1129,60 @@ def location_pod():
             if entry:
                 results.append(entry)
 
-    return jsonify({'pod': results, 'stale_after_seconds': STALE_AFTER_SECONDS})
+    return {'pod': results, 'stale_after_seconds': STALE_AFTER_SECONDS}
+
+
+@app.route('/api/location/pod', methods=['GET'])
+@login_required
+@rate_limit(120, 60)
+def location_pod():
+    """Poll live pod locations (fallback path — clients prefer the SSE stream)."""
+    return jsonify(build_pod_payload(get_current_user()))
+
+
+# ---------------------------------------------------------
+# REAL-TIME LOCATION — Server-Sent Events stream
+# ---------------------------------------------------------
+# Pushes pod updates the moment they change instead of waiting for the
+# client's next poll. The stream deliberately CYCLES: it closes after
+# SSE_CYCLE_SECONDS and the browser's EventSource reconnects on its own,
+# so a threaded gunicorn worker is never held hostage forever.
+SSE_CYCLE_SECONDS = int(os.environ.get('SSE_CYCLE_SECONDS', 50))
+SSE_POLL_SECONDS = 2
+
+
+@app.route('/api/location/stream')
+@login_required
+@rate_limit(120, 60)
+def location_stream():
+    """SSE stream of live pod locations (real-time safety tracking)."""
+    user = get_current_user()
+
+    def event_stream():
+        last_payload = None
+        deadline = time.time() + SSE_CYCLE_SECONDS
+        while time.time() < deadline:
+            payload = json.dumps(build_pod_payload(user), default=str)
+            if payload != last_payload:
+                # Data changed — push it to every connected client instantly
+                yield f"data: {payload}\n\n"
+                last_payload = payload
+            else:
+                # Comment frame keeps proxies from closing an idle connection
+                yield ": keep-alive\n\n"
+            time.sleep(SSE_POLL_SECONDS)
+        # Clean close — EventSource reconnects automatically
+        yield "event: cycle\ndata: reconnect\n\n"
+
+    response = Response(stream_with_context(event_stream()), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'  # disable proxy buffering
+    return response
 
 
 @app.route('/api/pod/notify', methods=['POST'])
 @login_required
+@rate_limit(10, 60)
 def notify_pod():
     """Group coordinator sends a quick alert to all pod members.
     Body: { 'message': '...' }  (max 200 chars)
@@ -958,10 +1204,12 @@ def notify_pod():
     if not pod_members:
         return jsonify({'error': 'No pod members to notify'}), 400
 
-    # Simulate sending notifications to each pod member
+    # Send notifications to each pod member (live WhatsApp when configured,
+    # simulated delivery otherwise) and log them so members can read the
+    # alert in-app via /api/pod/messages.
     sent_to = []
     for member in pod_members:
-        phone = member.cnic.replace('-', '')
+        phone = recipient_phone(member)
         result = send_notification('whatsapp', phone, f'Pod Alert from {user.name}: {message}')
         log_entry = NotificationLog(
             recipient_id=member.id,
@@ -1050,12 +1298,39 @@ def list_curriculum_packs():
     return jsonify(get_all_packs())
 
 
+@app.route('/api/pod/messages', methods=['GET'])
+@login_required
+def pod_messages():
+    """In-app alert feed for the current user: pod alerts and SOS notices
+    addressed to them (most recent first)."""
+    user = get_current_user()
+    if not user or user.role != 'parent':
+        return jsonify({'messages': []})
+
+    logs = NotificationLog.query.filter(
+        NotificationLog.recipient_id == user.id,
+        NotificationLog.curriculum_level.in_(('pod-alert', 'sos-alert')),
+    ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
+
+    return jsonify({'messages': [
+        {
+            'channel': log.channel,
+            'preview': log.content_preview,
+            'level': log.curriculum_level,
+            'status': log.status,
+            'sent_at': log.sent_at.strftime('%d %b, %I:%M %p') if log.sent_at else '',
+        }
+        for log in logs
+    ]})
+
+
 # ---------------------------------------------------------
 # FEATURE 5: WHATSAPP / SMS / IVR CURRICULUM DELIVERY
 # ---------------------------------------------------------
 
 @app.route('/api/broadcast-curriculum', methods=['POST'])
 @login_required
+@rate_limit(10, 60)
 def broadcast_curriculum():
     """
     Simulates sending curriculum content to families without devices
@@ -1094,8 +1369,8 @@ def broadcast_curriculum():
 
     sent_count = 0
     for family in unmatched_families:
-        # Use CNIC as a stand-in phone number for the demo
-        phone = family.cnic.replace('-', '')
+        # Registered phone when available; CNIC stand-in otherwise (demo mode)
+        phone = recipient_phone(family)
         result = send_notification(channel, phone, content_preview)
 
         log_entry = NotificationLog(

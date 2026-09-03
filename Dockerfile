@@ -29,6 +29,8 @@ RUN mkdir -p instance
 # Hugging Face Spaces expects 7860; Render/Railway override via $PORT.
 EXPOSE 7860
 
-# Single worker + threads avoids SQLite write-lock contention and prevents the
-# import-time seed logic from racing across multiple processes.
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 4 --timeout 120"]
+# Single gthread worker avoids SQLite write-lock contention and prevents the
+# import-time seed logic from racing across processes. Threads (not sync
+# workers) are required so long-lived SSE location streams don't block API
+# requests — each connected browser holds one thread until the stream cycles.
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 8 --worker-class gthread --timeout 120"]

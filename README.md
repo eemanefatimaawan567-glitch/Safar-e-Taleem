@@ -30,6 +30,9 @@ Hackathon.
 | **Hybrid shift simulation** | Principal can trigger a 3-days-school / 2-days-online rotation to cut transport cost ~40%. |
 | **Ask Ammi/Abba AI** | Qwen (Alibaba DashScope) chat + voice assistant that replies in natural Roman-Urdu + English mix, with a rule-based fallback when no API key is set. |
 | **Mohallah Study Pods** | Matches nearby families so children without devices can share offline learning packets (PDF). |
+| **Live Commute Safety** | Parents share live location on the school run (real-time SSE map, auto-reconnect + polling fallback). One-tap **SOS** instantly alerts every pod-mate and the principal with an OpenStreetMap location link. |
+| **Group Coordinator & Pod Alerts** | Each pod gets a deterministic Group Coordinator who can broadcast alerts ("van is 10 minutes late"); members receive them on WhatsApp/SMS and read them in the in-app alert feed. |
+| **WhatsApp / SMS / IVR delivery** | Curriculum packets and emergency alerts go out through real provider APIs (Meta WhatsApp Cloud, Pakistani HTTP SMS gateways) — with a zero-setup **simulation mode** so demos always work. |
 | **Offline-first PWA** | Service worker + web manifest; installable and works on flaky 3G networks. |
 
 ## 🛠 Tech stack
@@ -57,8 +60,13 @@ The database auto-creates and seeds demo users on first run.
 ## 🧪 Tests
 
 ```bash
-python -m pytest tests/ -q    # 32 tests covering the commute/clustering engine
+python -m pytest tests/ -q    # full suite: commute engine, geo services, notifications, AI, petrol, curriculum + API integration
 ```
+
+The API suite (`tests/test_api.py`) boots the Flask app against a throwaway
+SQLite database seeded with the demo families — all network access is
+disabled and notifications run in simulation mode, so results are
+deterministic and no provider credentials are needed.
 
 ## ☁️ Deployment
 
@@ -81,8 +89,13 @@ and it builds a free public URL.
 
 | Variable | Purpose |
 |---|---|
-| `SECRET_KEY` | Flask session signing (auto-generated on Render) |
+| `SECRET_KEY` | Flask session signing (auto-generated on Render; an ephemeral key is generated locally when unset) |
 | `DASHSCOPE_API_KEY` | Alibaba Qwen AI. When unset, the app falls back to the rule engine. |
+| `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` | Meta WhatsApp Cloud API — enables **real** WhatsApp delivery (simulation mode when unset) |
+| `SMS_GATEWAY_URL` / `_USERNAME` / `_PASSWORD` / `_SENDER` | Pakistani HTTP SMS gateway (SMS4Connect / Jazz / Telenor style) for **real** SMS delivery |
+| `DATABASE_URL` | Production database (defaults to local SQLite `instance/database.db`) |
+| `SSE_CYCLE_SECONDS` | How long a live-location stream stays open before the browser auto-reconnects (default `50`) |
+| `RATE_LIMIT_DISABLED` | Set to `1` in tests/local demos to skip API rate limiting |
 | `FLASK_DEBUG` | `true` locally, `false` in production |
 | `PORT` | Injected by the host platform (defaults to 7860 in Docker, 5001 locally) |
 

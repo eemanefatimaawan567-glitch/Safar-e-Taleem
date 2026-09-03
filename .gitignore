@@ -4,6 +4,11 @@ hackathon_env/
 env/
 .venv/
 
+# Local portable Python runtime (dev machine only, never commit)
+.python/
+python-embed.zip
+get-pip.py
+
 # Python
 __pycache__/
 *.pyc
@@ -25,3 +30,6 @@ tempCodeRunnerFile.py
 # Generated output (regenerate via scripts, don't commit)
 carpool_cluster_map.html
 commute_groups.csv
+
+# Test / tooling caches
+.pytest_cache/

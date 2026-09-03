@@ -8,6 +8,24 @@ let speechRecognition = null;
 let _cachedVoice = null;
 let _cachedUrduVoice = null;
 
+/* ---------- RESILIENT FETCH — retry with backoff ---------- */
+// Transient network hiccups shouldn't surface as user-facing errors. Retry
+// once (configurable) with a short backoff before giving up.
+async function fetchWithRetry(url, options = {}, retries = 1) {
+    let lastErr = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fetch(url, options);
+        } catch (err) {
+            lastErr = err;
+            if (attempt < retries) {
+                await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+            }
+        }
+    }
+    throw lastErr;
+}
+
 // Detect the best STT language for Roman-Urdu + English mixed speech.
 // 'en-PK' would be ideal (Pakistan-English accent + Urdu loanwords) but
 // many browsers don't support it.  We probe the SpeechRecognition
@@ -264,7 +282,7 @@ async function updatePrice() {
     const simActive = !!(simSlider && simSlider.dataset.simulating === '1');
 
     try {
-        const res = await fetch('/api/petrol-price');
+        const res = await fetchWithRetry('/api/petrol-price', {}, 1);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
 
@@ -415,14 +433,14 @@ async function sendMessage() {
     input.value = '';
 
     try {
-        const res = await fetch('/api/ask-ammi-abba', {
+        const res = await fetchWithRetry('/api/ask-ammi-abba', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: query,
                 history: chatHistory.slice(-CHAT_HISTORY_LIMIT)
             })
-        });
+        }, 1);
         const data = await res.json();
         appendMessage(data.text_response, 'bot');
         // Remember this turn so follow-up questions keep context
@@ -744,7 +762,7 @@ async function loadPetrolChart() {
     if (!canvas) return;
 
     try {
-        const res = await fetch('/api/petrol-history');
+        const res = await fetchWithRetry('/api/petrol-history', {}, 1);
         const history = await res.json();
 
         if (!history || history.length === 0) return;
@@ -951,7 +969,7 @@ function generateHybridTimetable() {
 
     output.innerHTML = `<p style="color: var(--text-muted);">Activating hybrid schedule...</p>`;
 
-    fetch('/api/toggle-hybrid', { method: 'POST' })
+    fetchWithRetry('/api/toggle-hybrid', { method: 'POST' }, 1)
         .then(r => r.json())
         .then(data => {
             if (data.active) {

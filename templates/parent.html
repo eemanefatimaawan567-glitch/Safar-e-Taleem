@@ -40,6 +40,12 @@
             <div class="avatar-chip">{{ user.name[0] if user and user.name else 'P' }}</div>
         </div>
 
+        <!-- SOS banner — revealed by location.js when any pod-mate sends an SOS -->
+        <div id="sos-banner" class="sos-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span></span>
+        </div>
+
         <div class="petrol-card">
             <div style="flex: 1;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
@@ -263,6 +269,18 @@
             <div id="pod-location-list"></div>
         </div>
 
+        <div class="panel-card ui-card" id="pod-alerts" style="margin-top: 24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-bell"></i> Pod Alerts</p>
+                <span class="badge" id="pod-alerts-count">0</span>
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                Recent alerts sent to you by your Group Coordinator and SOS notifications from your
+                commute pod (also delivered via WhatsApp/SMS when configured).
+            </p>
+            <div id="pod-alerts-list"></div>
+        </div>
+
         <div class="panel-card ui-card" id="study-pod" style="margin-top: 24px;">
             <div class="panel-header">
                 <p class="panel-title"><i class="fa-solid fa-house-laptop"></i> Mohallah Study Pod</p>
@@ -391,6 +409,48 @@
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
+// --- POD ALERTS: in-app feed of alerts addressed to this parent ---
+async function loadPodAlerts() {
+    const listEl = document.getElementById('pod-alerts-list');
+    if (!listEl) return;
+    try {
+        const res = await fetch('/api/pod/messages');
+        if (!res.ok) return;
+        const data = await res.json();
+        const messages = data.messages || [];
+        const countEl = document.getElementById('pod-alerts-count');
+        if (countEl) countEl.textContent = String(messages.length);
+
+        if (!messages.length) {
+            listEl.innerHTML = '<div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No alerts yet — coordinator messages and SOS notices will appear here.</div>';
+            return;
+        }
+
+        listEl.innerHTML = messages.map((m) => {
+            const isSos = m.level === 'sos-alert';
+            const icon = isSos ? 'fa-triangle-exclamation' : 'fa-bullhorn';
+            const bg = isSos ? '#fef2f2' : (m.status === 'failed' ? '#fff7ed' : '#f8fafc');
+            const border = isSos ? '#fecaca' : (m.status === 'failed' ? '#fed7aa' : 'var(--border)');
+            const color = isSos ? '#991b1b' : 'inherit';
+            const failedNote = m.status === 'failed'
+                ? ' <i class="fa-solid fa-circle-exclamation" title="Delivery failed"></i>'
+                : '';
+            return `<div class="group-row" style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; margin-bottom: 8px;">
+                <div class="group-person">
+                    <i class="fa-solid ${icon}" style="color: ${isSos ? '#ef4444' : '#f59e0b'};"></i>
+                    <div>
+                        <div class="person-name" style="font-size: 0.85rem; color: ${color};">${m.preview}</div>
+                        <div class="person-role">${m.channel} • ${m.sent_at}${failedNote}</div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        // Supplementary panel — never block the page on it
+    }
+}
+document.addEventListener('DOMContentLoaded', loadPodAlerts);
+
 // --- COORDINATOR: Send pod alert ---
 async function sendPodAlert() {
     const msgInput = document.getElementById('pod-alert-msg');
@@ -418,6 +478,7 @@ async function sendPodAlert() {
         if (res.ok) {
             statusEl.innerHTML = '<span style="color: #004D40;"><i class="fa-solid fa-check-circle"></i> ' + data.message + '</span>';
             msgInput.value = '';
+            loadPodAlerts();
         } else {
             statusEl.innerHTML = '<span style="color: #ef4444;">' + (data.error || 'Failed to send') + '</span>';
         }

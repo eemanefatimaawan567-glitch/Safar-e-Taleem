@@ -1,58 +1,155 @@
 """
-Safar-e-Taleem — Low-Data Curriculum Delivery (WhatsApp/SMS/IVR Simulation)
+Safar-e-Taleem — Curriculum Delivery Channels (SMS / WhatsApp / IVR)
+====================================================================
 
-Simulates pushing curriculum content to families without digital devices
-via three channels:
-  • WhatsApp: Rich text summary with subjects & key topics (simulated API call)
-  • SMS:        Short text with today's main topic per subject (simulated API call)
-  • IVR:        Automated voice call reading the day's study plan (simulated API call)
+Routes each channel to a real provider when configured, and falls back to
+the offline simulation otherwise (so the demo always works with zero setup):
 
-All messages are logged in the database (NotificationLog) for delivery tracking.
-In production, replace the _send_* functions with actual API calls
-(WhatsApp Business API, Twilio SMS, Twilio IVR, etc.).
+  • SMS       → any Pakistani HTTP SMS gateway (SMS4Connect-style request
+                shape: user / pwd / sender / receiver / text). Configure:
+                  SMS_GATEWAY_URL, SMS_GATEWAY_USERNAME,
+                  SMS_GATEWAY_PASSWORD, SMS_GATEWAY_SENDER
+                Works with SMS4Connect, Jazz Business bulk SMS, Telenor
+                gateways that expose a plain HTTP endpoint.
+
+  • WhatsApp  → Meta WhatsApp Cloud API. Configure:
+                  WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
+
+  • IVR       → simulated (plug a Twilio / Infobip / local voice provider
+                into send_ivr when one is chosen).
+
+Env vars are read at call time (not import time) so providers can be
+enabled per-deployment without code changes. Every sender returns a dict
+and NEVER raises — a provider outage must not break a broadcast.
 """
+import os
+import re
+import logging
 from datetime import datetime
 
+import requests
+
+logger = logging.getLogger('safar-e-taleem.notify')
+
+WHATSAPP_GRAPH_URL = 'https://graph.facebook.com/v18.0/{phone_id}/messages'
+
 
 # ---------------------------------------------------------
-# CHANNEL SIMULATORS
+# PHONE HELPERS
 # ---------------------------------------------------------
 
-def send_whatsapp(phone, content_preview):
+def normalize_pk_phone(raw):
     """
-    Simulate sending curriculum via WhatsApp Business API.
-    In production: POST to https://graph.facebook.com/v18.0/{phone_id}/messages
+    Normalize a Pakistani mobile number to E.164 (+92XXXXXXXXXX).
+    Accepts 03XXXXXXXXX, 92XXXXXXXXXX, +92XXXXXXXXXX, with dashes/spaces.
+    Returns '' when no digits are present.
     """
+    digits = re.sub(r'\D', '', str(raw or ''))
+    if not digits:
+        return ''
+    if digits.startswith('92'):
+        return '+' + digits
+    if digits.startswith('0'):
+        return '+92' + digits[1:]
+    return '+' + digits
+
+
+def _configured(*keys):
+    """True when every listed env var is non-empty."""
+    return all(os.getenv(key, '').strip() for key in keys)
+
+
+def _simulated(prefix, preview):
     return {
-        "status": "delivered",
-        "message_id": f"WA{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        "preview": f"📚 {content_preview[:150]}",
+        'status': 'delivered',
+        'message_id': f'{prefix}{datetime.now().strftime("%Y%m%d%H%M%S%f")}',
+        'preview': preview,
+        'provider': 'simulated',
     }
 
+
+# ---------------------------------------------------------
+# CHANNEL SENDERS
+# ---------------------------------------------------------
 
 def send_sms(phone, content_preview):
     """
-    Simulate sending curriculum summary via SMS.
-    In production: Use Twilio, Telenor Bulk SMS, or Jazz SMS Gateway API.
+    SMS via a Pakistani HTTP gateway (SMS4Connect-style), else simulated.
+    Gateway response body is stored in the preview so delivery logs show
+    exactly what the provider answered.
     """
-    return {
-        "status": "delivered",
-        "message_id": f"SMS{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        "preview": f"📱 {content_preview[:100]}",
-    }
+    if _configured('SMS_GATEWAY_URL', 'SMS_GATEWAY_USERNAME', 'SMS_GATEWAY_PASSWORD'):
+        try:
+            resp = requests.post(
+                os.getenv('SMS_GATEWAY_URL'),
+                data={
+                    'user': os.getenv('SMS_GATEWAY_USERNAME'),
+                    'pwd': os.getenv('SMS_GATEWAY_PASSWORD'),
+                    'sender': os.getenv('SMS_GATEWAY_SENDER', 'SafarTaleem'),
+                    'receiver': normalize_pk_phone(phone),
+                    'text': content_preview[:480],
+                },
+                timeout=8,
+            )
+            body = (resp.text or '')[:200]
+            ok = resp.status_code == 200 and 'error' not in body.lower()
+            return {
+                'status': 'sent' if ok else 'failed',
+                'message_id': f'SMSGW{datetime.now().strftime("%Y%m%d%H%M%S%f")}',
+                'preview': body,
+                'provider': 'sms-gateway',
+            }
+        except Exception as e:
+            logger.warning('SMS gateway error: %s', e)
+            return {
+                'status': 'failed',
+                'message_id': '',
+                'preview': str(e)[:200],
+                'provider': 'sms-gateway',
+            }
+    return _simulated('SMS', f'📱 {content_preview[:100]}')
+
+
+def send_whatsapp(phone, content_preview):
+    """WhatsApp via Meta Cloud API, else simulated."""
+    if _configured('WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'):
+        try:
+            resp = requests.post(
+                WHATSAPP_GRAPH_URL.format(phone_id=os.getenv('WHATSAPP_PHONE_NUMBER_ID')),
+                headers={'Authorization': f'Bearer {os.getenv("WHATSAPP_TOKEN")}'},
+                json={
+                    'messaging_product': 'whatsapp',
+                    'to': normalize_pk_phone(phone),
+                    'type': 'text',
+                    'text': {'body': content_preview[:1024]},
+                },
+                timeout=8,
+            )
+            data = resp.json() if resp.content else {}
+            msg_id = (data.get('messages') or [{}])[0].get('id', '')
+            return {
+                'status': 'sent' if resp.status_code == 200 else 'failed',
+                'message_id': msg_id,
+                'preview': f'📚 {content_preview[:150]}',
+                'provider': 'whatsapp-cloud',
+            }
+        except Exception as e:
+            logger.warning('WhatsApp Cloud error: %s', e)
+            return {
+                'status': 'failed',
+                'message_id': '',
+                'preview': str(e)[:200],
+                'provider': 'whatsapp-cloud',
+            }
+    return _simulated('WA', f'📚 {content_preview[:150]}')
 
 
 def send_ivr(phone, content_preview):
     """
-    Simulate an IVR (automated voice) call delivering curriculum.
-    In production: Use Twilio Voice API or a local IVR provider like
-    Infobip or Mobilink Enterprise.
+    IVR (automated voice call) — simulated until a voice provider is chosen.
+    In production: Twilio Voice, Infobip, or a local IVR provider.
     """
-    return {
-        "status": "delivered",
-        "message_id": f"IVR{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        "preview": f"📞 {content_preview[:120]}",
-    }
+    return _simulated('IVR', f'📞 {content_preview[:120]}')
 
 
 # ---------------------------------------------------------
@@ -60,15 +157,18 @@ def send_ivr(phone, content_preview):
 # ---------------------------------------------------------
 
 CHANNELS = {
-    "whatsapp": send_whatsapp,
-    "sms": send_sms,
-    "ivr": send_ivr,
+    'whatsapp': send_whatsapp,
+    'sms': send_sms,
+    'ivr': send_ivr,
 }
 
 
 def send_notification(channel, phone, content_preview):
-    """Route a notification to the correct channel simulator."""
+    """
+    Route a notification to its channel. Always returns a dict:
+        {'status', 'message_id', 'preview', 'provider'}
+    """
     sender = CHANNELS.get(channel)
     if not sender:
-        return {"status": "error", "message": f"Unknown channel: {channel}"}
+        return {'status': 'error', 'message': f'Unknown channel: {channel}'}
     return sender(phone, content_preview)

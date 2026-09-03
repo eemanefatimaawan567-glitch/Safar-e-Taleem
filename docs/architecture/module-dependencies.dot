@@ -1,0 +1,85 @@
+// Safar-e-Taleem — Python Module Dependency Graph
+// Evidence: import statements in app.py and modules/*.py
+// Edge types: import (compile-time), runtime-call
+// Generated from code analysis — all edges are compile-time imports unless noted.
+
+digraph safar_e_taleem_modules {
+    rankdir=TB
+    node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=11, penwidth=1.5]
+    edge [fontname="Segoe UI", fontsize=9, color="#475569"]
+
+    // --- Entry point ---
+    app [label="app.py\n(Flask routes, DB models,\nauth, APIs, SSE)", fillcolor="#059669", fontcolor="white"]
+
+    // --- Core modules (no internal deps) ---
+    subgraph cluster_core {
+        label="Core Modules (standalone)"
+        style=rounded
+        color="#d1d5db"
+        fontname="Segoe UI"
+        fontsize=10
+
+        commute_engine [label="commute_engine.py\nDBSCAN clustering,\ntransport recommend,\nfuel cost calc", fillcolor="#10b981", fontcolor="white"]
+        petrol_price [label="petrol_price.py\nLive fuel price scraping,\nhistory tracking", fillcolor="#10b981", fontcolor="white"]
+        notification [label="notification.py\nWhatsApp / SMS / IVR\ndelivery engine", fillcolor="#10b981", fontcolor="white"]
+        curriculum [label="curriculum.py\nOffline learning PDF\npack generation", fillcolor="#10b981", fontcolor="white"]
+    }
+
+    // --- Integration modules (depend on core) ---
+    subgraph cluster_integration {
+        label="Integration Modules (depend on core)"
+        style=rounded
+        color="#d1d5db"
+        fontname="Segoe UI"
+        fontsize=10
+
+        geo_services [label="geo_services.py\nOSRM routing,\nNominatim geocoding", fillcolor="#0d9488", fontcolor="white"]
+        schools [label="schools.py\nSchool registry,\ncommute distance", fillcolor="#0d9488", fontcolor="white"]
+        ai_responses [label="ai_responses.py\nQwen AI + rule-based\nRoman-Urdu assistant", fillcolor="#0d9488", fontcolor="white"]
+    }
+
+    // --- External services ---
+    subgraph cluster_external {
+        label="External Services"
+        style=rounded
+        color="#d1d5db"
+        fontname="Segoe UI"
+        fontsize=10
+        node [shape=ellipse, fillcolor="#6b7280", fontcolor="white"]
+
+        osrm [label="OSRM\nDemo Server"]
+        nominatim [label="Nominatim\n(OpenStreetMap)"]
+        dashscope [label="Alibaba\nDashScope (Qwen)"]
+        whatsapp_api [label="Meta WhatsApp\nCloud API"]
+        sms_gw [label="Pakistani\nSMS Gateway"]
+        fuel_api [label="Shell Pakistan\nFuel Prices"]
+    }
+
+    // --- Database ---
+    database [label="SQLite Database\n(users, prices, locations,\nnotifications, schedules)", shape=cylinder, fillcolor="#1e40af", fontcolor="white"]
+
+    // ============ app.py -> all modules ============
+    app -> commute_engine [label="import"]
+    app -> petrol_price [label="import"]
+    app -> schools [label="import"]
+    app -> geo_services [label="import"]
+    app -> ai_responses [label="lazy import"]
+    app -> notification [label="import"]
+    app -> curriculum [label="import"]
+    app -> database [label="SQLAlchemy ORM"]
+
+    // ============ Integration module dependencies ============
+    geo_services -> commute_engine [label="distance_km"]
+    schools -> commute_engine [label="distance_km"]
+    schools -> geo_services [label="geocode"]
+    ai_responses -> commute_engine [label="distance, cluster\ncontext"]
+
+    // ============ External service calls ============
+    geo_services -> osrm [label="walking_route()", style=dashed, labeldistance=2.0]
+    geo_services -> nominatim [label="geocode()", style=dashed]
+    schools -> nominatim [label="geocode (via\ngeo_services)", style=dashed]
+    ai_responses -> dashscope [label="chat completions", style=dashed]
+    notification -> whatsapp_api [label="send_notification()", style=dashed]
+    notification -> sms_gw [label="send_notification()", style=dashed]
+    petrol_price -> fuel_api [label="scrape prices", style=dashed]
+}

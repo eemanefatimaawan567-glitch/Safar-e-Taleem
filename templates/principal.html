@@ -228,7 +228,7 @@
                     <canvas id="petrol-chart" aria-label="Petrol price history chart" role="img"></canvas>
                 </div>
                 <div id="hybrid-shift-status" class="hybrid-shift-status" role="status">
-                    <i class="fa-solid fa-school" aria-hidden="true"></i> Physical School Status: Normal — 5-Day Physical Schedule
+                    <i class="fa-solid fa-flask" aria-hidden="true"></i> Simulation Preview: Normal — 5-Day Physical Schedule
                 </div>
                 <div id="schedule-output" style="padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); margin-top: 12px;">
                     <p style="margin: 0; line-height: 1.5; font-size: 0.9rem;">
@@ -574,8 +574,8 @@ function _applySimulatedPetrol(price) {
     if (hybridStatus) {
         hybridStatus.classList.toggle('critical', critical);
         hybridStatus.innerHTML = critical
-            ? '⚠️ Hybrid Shift Active (3 Days Physical / 2 Days Remote)'
-            : '<i class="fa-solid fa-school" aria-hidden="true"></i> Physical School Status: Normal — 5-Day Physical Schedule';
+            ? '<i class="fa-solid fa-flask" aria-hidden="true"></i> Simulation Preview: Hybrid Shift (3 Days Physical / 2 Days Remote)'
+            : '<i class="fa-solid fa-flask" aria-hidden="true"></i> Simulation Preview: Normal — 5-Day Physical Schedule';
     }
 }
 

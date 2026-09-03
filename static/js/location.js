@@ -19,6 +19,77 @@
     let pollTimer = null;
     let simulatedPos = null; // {lat, lon} used when real GPS isn't available
     let routeStep = 0;         // current index along the mock walking route
+    let arrived = false;        // set true once the child reaches school
+
+    // ---------------------------------------------------------
+    // ARRIVAL DETECTION — when the child reaches school
+    // ---------------------------------------------------------
+    // Haversine distance between two [lat, lon] points in km.
+    function _haversineKm(a, b) {
+        const R = 6371;
+        const dLat = (b[0] - a[0]) * Math.PI / 180;
+        const dLon = (b[1] - a[1]) * Math.PI / 180;
+        const lat1 = a[0] * Math.PI / 180;
+        const lat2 = b[0] * Math.PI / 180;
+        const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    }
+
+    // Called after every position ping. If the child is within 100 m of
+    // school (or the simulated walk has reached the last waypoint), show
+    // an "Arrived Safely" banner and auto-stop sharing. Fires exactly once
+    // per commute — `arrived` is reset when the parent starts sharing again.
+    function _checkArrival(pos) {
+        if (arrived) return;
+        const dest = schoolCoords();
+        if (!dest) return;
+        const distKm = _haversineKm([pos.latitude, pos.longitude], dest);
+        const simComplete = routeStep >= SIM_STEPS;
+        if (distKm < 0.1 || simComplete) {
+            arrived = true;
+            clearInterval(pingTimer);
+
+            // Visual confirmation on the map
+            if (map) {
+                const arrivalIcon = L.divIcon({
+                    className: '',
+                    html: '<div style="width:32px;height:32px;border-radius:50%;background:#16a34a;border:3px solid #fff;'
+                        + 'box-shadow:0 0 0 2px #16a34a;display:flex;align-items:center;justify-content:center;'
+                        + 'color:#fff;font-size:14px;"><i class="fa-solid fa-check"></i></div>',
+                    iconSize: [32, 32], iconAnchor: [16, 16],
+                });
+                L.marker([pos.latitude, pos.longitude], { icon: arrivalIcon, zIndexOffset: 500 })
+                    .addTo(map).bindPopup('<strong>Child Arrived Safely!</strong>');
+                map.setView([pos.latitude, pos.longitude], 16);
+            }
+
+            // Update the sharing button + status badge
+            const btn = document.getElementById('share-toggle-btn');
+            const badge = document.getElementById('sharing-status-badge');
+            const sosBtn = document.getElementById('sos-btn');
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Arrived Safely';
+                btn.classList.remove('btn-sos');
+                btn.style.backgroundColor = '#16a34a';
+                btn.style.color = '#fff';
+            }
+            if (badge) {
+                badge.textContent = 'Arrived';
+                badge.style.background = '#d1fae5';
+                badge.style.color = '#059669';
+            }
+            if (sosBtn) {
+                sosBtn.style.display = 'none';
+                sosBtn.classList.remove('active');
+                sosBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> SOS — Need Help';
+            }
+
+            // Notify the server (best-effort — auto-stops stale shares)
+            fetchWithRetry('/api/location/stop', { method: 'POST' }, 1).catch(() => {});
+            sharing = false;
+            refreshPod();
+        }
+    }
 
     // ---------------------------------------------------------
     // RESILIENT FETCH — retry once with backoff before surfacing an
@@ -425,6 +496,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(p),
                 }, 1).catch(() => { /* retried once already — the next ping retries */ });
+                _checkArrival(p);
             }, PING_MS);
 
             refreshPod();
@@ -433,12 +505,15 @@
                 await fetchWithRetry('/api/location/stop', { method: 'POST' }, 1);
             } catch (_) { /* best effort — the server auto-stops stale shares */ }
             sharing = false;
+            arrived = false;
             clearInterval(pingTimer);
             simulatedPos = null;
             routeStep = 0;  // reset walking route for next share
 
             btn.innerHTML = '<i class="fa-solid fa-location-arrow"></i> Start Sharing';
             btn.classList.remove('btn-sos');
+            btn.style.backgroundColor = '';
+            btn.style.color = '';
             badge.textContent = 'Not Sharing';
             badge.style.background = '';
             badge.style.color = '';

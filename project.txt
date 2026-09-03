@@ -13,7 +13,7 @@ How it works:
 
 The AI part:
   DBSCAN clustering (scikit-learn) instantly groups families who live
-  within 1 km of each other and attend the same school. The engine is
+  within 0.5 km of each other and attend the same school. The engine is
   smart — if the school is close it builds a walking group; if it is far
   it switches to motorcycle or carpool sharing, so fuel costs are cut
   regardless of distance.
@@ -90,7 +90,8 @@ ENGINEERING & DEPLOYMENT
   flaky 3G, caches the app shell, friendly offline banners)
 - Tested: full pytest suite — clustering engine, Haversine distance,
   carpool economics, geo services, notification providers, AI fallbacks,
-  petrol pricing, curriculum content, and 68 API/integration tests
+  petrol pricing, curriculum content, and 371 tests across unit, integration,
+  and API layers
   (auth + CSRF, registration validation, SOS dispatch, pod coordination,
   SSE stream, rate limiting) against a throwaway seeded database
 - One-click deploy: render.yaml blueprint + Procfile (gunicorn)

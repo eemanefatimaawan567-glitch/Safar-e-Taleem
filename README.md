@@ -24,9 +24,9 @@ Hackathon.
 
 | Feature | What it does |
 |---|---|
-| **AI Walking Groups** | DBSCAN clustering (scikit-learn, haversine) groups families within 1 km attending the same school into a "Walking School Bus". |
+| **AI Walking Groups** | DBSCAN clustering (scikit-learn, haversine) groups families within 0.5 km attending the same school into a "Walking School Bus". |
 | **Fuel-aware routing** | Recommends walking / shared / carpool / bike based on distance and live petrol price; computes monthly savings. |
-| **Live petrol monitor** | Scrapes current Pakistani fuel prices, tracks history, and charts trends (Chart.js). |
+| **Live petrol monitor** | Fetches current Pakistani fuel prices via the TrackMate API, tracks history, and charts trends (Chart.js). |
 | **Hybrid shift simulation** | Principal can trigger a 3-days-school / 2-days-online rotation to cut transport cost ~40%. |
 | **Ask Ammi/Abba AI** | Qwen (Alibaba DashScope) chat + voice assistant that replies in natural Roman-Urdu + English mix, with a rule-based fallback when no API key is set. |
 | **Mohallah Study Pods** | Matches nearby families so children without devices can share offline learning packets (PDF). |

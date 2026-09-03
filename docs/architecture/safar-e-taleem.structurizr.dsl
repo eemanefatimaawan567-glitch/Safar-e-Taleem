@@ -14,7 +14,7 @@ workspace "Safar-e-Taleem" "Evidence-backed C4 model of the Safar-e-Taleem smart
                 # --- Components (modules) ---
                 routes = component "Routes & Auth" "Public/protected routes, login, registration, CSRF, rate limiting, session management." "Flask Blueprints"
                 commuteEngine = component "Commute Engine" "DBSCAN clustering (scikit-learn), transport recommendation, fuel cost and carpool saving calculations." "Python / scikit-learn"
-                petrolMonitor = component "Petrol Price Monitor" "Scrapes live Pakistani fuel prices, tracks history, detects changes, supports demo spike/reset." "Python / requests"
+                petrolMonitor = component "Petrol Price Monitor" "Fetches live Pakistani fuel prices via the TrackMate API, tracks history, detects changes, supports demo spike/reset." "Python / requests"
                 schoolRegistry = component "School Registry" "School lookup by name/area, home-to-school distance calculation via Haversine + Nominatim." "Python"
                 geoServices = component "Geo Services" "OSRM walking route extraction, Nominatim geocoding with 24h server cache." "Python / requests"
                 aiAssistant = component "AI Assistant (Ask Ammi/Abba)" "Qwen (DashScope) chat + voice in Roman-Urdu, with rule-based fallback when no API key is set." "Python / openai SDK"
@@ -50,7 +50,7 @@ workspace "Safar-e-Taleem" "Evidence-backed C4 model of the Safar-e-Taleem smart
             tags "External"
         }
 
-        fuelPriceApi = softwareSystem "Pakistani Fuel Price API" "Shell Pakistan website scraped for live petrol/diesel/kerosene/LPG prices." {
+        fuelPriceApi = softwareSystem "TrackMate Fuel Price API" "TrackMate Pakistan fuel-price API providing live petrol/diesel/kerosene/LPG prices." {
             tags "External"
         }
 

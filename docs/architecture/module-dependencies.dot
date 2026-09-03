@@ -52,7 +52,7 @@ digraph safar_e_taleem_modules {
         dashscope [label="Alibaba\nDashScope (Qwen)"]
         whatsapp_api [label="Meta WhatsApp\nCloud API"]
         sms_gw [label="Pakistani\nSMS Gateway"]
-        fuel_api [label="Shell Pakistan\nFuel Prices"]
+        fuel_api [label="TrackMate\nFuel Price API"]
     }
 
     // --- Database ---
@@ -81,5 +81,5 @@ digraph safar_e_taleem_modules {
     ai_responses -> dashscope [label="chat completions", style=dashed]
     notification -> whatsapp_api [label="send_notification()", style=dashed]
     notification -> sms_gw [label="send_notification()", style=dashed]
-    petrol_price -> fuel_api [label="scrape prices", style=dashed]
+    petrol_price -> fuel_api [label="fetch prices", style=dashed]
 }

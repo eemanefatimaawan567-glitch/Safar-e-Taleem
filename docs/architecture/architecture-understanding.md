@@ -60,7 +60,7 @@ The codebase is organized into **7 Python modules** under `modules/` plus the ma
 | Module | Responsibility | Key Dependencies |
 |---|---|---|
 | `commute_engine.py` | DBSCAN clustering (scikit-learn), transport recommendation by distance, fuel cost & carpool saving calculations | numpy, pandas, math |
-| `petrol_price.py` | Scrapes live Pakistani fuel prices from Shell Pakistan, tracks history, detects changes | requests |
+| `petrol_price.py` | Fetches live Pakistani fuel prices from the TrackMate API, tracks history, detects changes | requests |
 | `notification.py` | WhatsApp Cloud API, Pakistani HTTP SMS gateway, IVR delivery. Zero-setup simulation mode when credentials absent | requests |
 | `curriculum.py` | Offline learning PDF pack generation for primary/secondary levels | (stdlib only) |
 
@@ -87,7 +87,7 @@ The codebase is organized into **7 Python modules** under `modules/` plus the ma
 | **Alibaba DashScope (Qwen)** | ai_responses | OpenAI-compatible SDK | Roman-Urdu + English AI chat responses |
 | **Meta WhatsApp Cloud API** | notification | HTTPS POST | Curriculum delivery, pod alerts, SOS notifications |
 | **Pakistani SMS Gateway** | notification | HTTPS POST | SMS curriculum delivery |
-| **Shell Pakistan Fuel Prices** | petrol_price | HTTP GET (scraping) | Live petrol/diesel/kerosene/LPG prices |
+| **TrackMate Fuel Price API** | petrol_price | HTTP GET (JSON API) | Live petrol/diesel/kerosene/LPG prices |
 
 ---
 

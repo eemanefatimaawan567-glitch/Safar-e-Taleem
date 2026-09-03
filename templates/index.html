@@ -148,9 +148,9 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 12px; align-items: flex-end; margin-left: 20px;">
             <span class="btn btn-teal"><i class="fa-solid fa-tower-broadcast"></i> Live monitoring</span>
-            <button class="btn btn-lg" onclick="alert('Hybrid Shift Simulation is available in the Principal Dashboard. Click Demo: Principal to try it!')" style="background: linear-gradient(135deg, #FF7A00, #E65100); color: #fff; border: none; white-space: nowrap; box-shadow: 0 4px 16px rgba(255,122,0,0.3);">
+            <a href="/demo-login/principal" class="btn btn-lg" style="background: linear-gradient(135deg, #FF7A00, #E65100); color: #fff; border: none; white-space: nowrap; box-shadow: 0 4px 16px rgba(255,122,0,0.3); text-decoration: none;">
                 <i class="fa-solid fa-bolt"></i> Execute Hybrid Shift Simulation
-            </button>
+            </a>
         </div>
     </div>
 </section>
@@ -163,7 +163,7 @@
                 <i class="fa-solid fa-users"></i>
             </div>
             <h3>AI Walking Groups</h3>
-            <p>DBSCAN clustering automatically groups families within 1 km. Parents take turns walking kids to school — zero fuel cost, 100% safe.</p>
+            <p>DBSCAN clustering automatically groups families within 0.5 km. Parents take turns walking kids to school — zero fuel cost, 100% safe.</p>
         </div>
         <div class="feature-card ui-card anim-fade-up anim-delay-2">
             <div class="feature-icon accent-icon">
@@ -213,7 +213,7 @@
         <div class="step-card ui-card anim-fade-up anim-delay-1">
             <div class="step-number">1</div>
             <h3>Register</h3>
-            <p>Parents enter their neighborhood, school, and GPS location. CNIC-verified for safety.</p>
+            <p>Parents enter their neighborhood, school, and GPS location. CNIC format-validated for safety.</p>
         </div>
         <div class="step-card ui-card anim-fade-up anim-delay-2">
             <div class="step-number">2</div>
@@ -272,7 +272,7 @@
 
             <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
                 <span style="background: #ef4444; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">2</span>
-                <div><strong>Trigger Petrol Spike</strong> — Click <em>"Trigger Spike (Rs 380/L)"</em> in the yellow Demo Mode panel. Price jumps, alert card turns red, hybrid schedule auto-activates.</div>
+                <div><strong>Simulate a Petrol Spike</strong> — On the principal dashboard, scroll to the <em>"Hackathon Interactive Panel"</em>. Drag the petrol-price slider above <strong>Rs 380/L</strong>. The OGRA critical alert fires, the dashboard turns red, and the hybrid contingency preview activates — all in the browser, without touching the live price feed.</div>
             </div>
 
             <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;">
@@ -297,7 +297,7 @@
 
             <div style="display: flex; gap: 12px; align-items: flex-start;">
                 <span style="background: #004D40; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">7</span>
-                <div><strong>Reset &amp; Repeat</strong> — Back on principal, click <em>"Reset to Normal"</em> to restore prices and deactivate hybrid for a clean restart.</div>
+                <div><strong>Reset &amp; Repeat</strong> — Drag the slider back to <strong>Rs 343</strong> (the default) to clear the OGRA alert and return the dashboard to its normal state. You can also tap the hybrid shift toggle button to deactivate the schedule for a clean restart.</div>
             </div>
 
             <div style="margin-top: 20px; padding: 12px; background: #f0fdf4; border-radius: 10px; border: 1px solid #bbf7d0;">

@@ -67,6 +67,38 @@ function _pickUrduVoice(voices) {
            null;
 }
 
+// Languages whose voices can actually pronounce this app's replies. Roman Urdu
+// is Latin script, so a real Urdu voice reads it best and an English voice reads
+// it acceptably once the respelling map below has run; Hindi is close enough to
+// serve as a last resort. Nothing else can speak it at all.
+const _SPEAKABLE_LANG_RE = /^(en|ur|hi)/i;
+
+let _voiceWarningShown = false;
+
+// Chrome on Windows only exposes "OneCore" speech voices, so a machine whose one
+// installed language pack is, say, Chinese reports zero en/ur voices -- even
+// when classic SAPI English voices exist elsewhere in the system and are visible
+// to other apps. Setting utterance.lang does not conjure a missing voice: Chrome
+// silently uses the system default instead, which reads Roman Urdu in Mandarin.
+// That sounds like noise, and the Web Speech API throws nothing and logs nothing,
+// so the failure is invisible unless we check for it here and say so out loud.
+function _warnNoSpeakableVoice(voices) {
+    if (_voiceWarningShown) return;
+    _voiceWarningShown = true;
+
+    const installed = Array.from(new Set(
+        (voices || []).map(v => v.lang).filter(Boolean)
+    ));
+    const found = installed.length ? installed.join(', ') : 'none';
+
+    _showOfflineNotice(
+        'Voice reply skipped \u2014 this device has no English or Urdu speech voice ' +
+        '(voices installed: ' + found + '). On Windows: Settings \u2192 Time & Language \u2192 ' +
+        'Language & region \u2192 add English (United States) \u2192 Language options \u2192 ' +
+        'Download voice, then reload this page.'
+    );
+}
+
 // -----------------------------------------------------------------
 // TTS PHONETIC RESPELLING — so English voices don't spell Urdu words
 // -----------------------------------------------------------------
@@ -180,7 +212,7 @@ const _TTS_PHONETIC_MAP = [
     [/\bbachega\b/gi, 'buh-chay-ga'],
     [/\bbachenge\b/gi, 'buh-chay-gay'],
     [/\bbachao\b/gi, 'buh-chao'],
-    [/\bbachat\b/gi, 'buh-chut'],
+    [/\bbachat\b/gi, 'buh-chuht'],   // trailing h: 'buh-chut' reads as a slur
     [/\baadha\b/gi, 'aa-dha'],
     [/\baadhi\b/gi, 'aa-dhee'],
     [/\bkhabar\b/gi, 'kuh-bur'],
@@ -475,13 +507,18 @@ function speakResponse(text, source) {
         .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{200D}\u{FE0F}]/gu, '')
         .replace(/\n+/g, '. ')
         .replace(/\u2022/g, '')
+        .replace(/(\d+(?:\.\d+)?)\s*Rs\/L/gi, '$1 rupees per litre')
         .replace(/Rs ([\d,]+)/g, '$1 rupees')
+        // Urdu puts the unit after the number ("500 Rs"), which the rule above
+        // misses; left alone an English voice spells it "five hundred R-S".
+        .replace(/([\d,]+(?:\.\d+)?)\s+Rs\b(?!\/)/gi, '$1 rupees')
         .replace(/(\d+)%/g, '$1 percent')
         .trim();
 
     // Ensure voices loaded
-    if (!_cachedVoice) _cachedVoice = _pickEnglishVoice(speechSynthesis.getVoices());
-    if (!_cachedUrduVoice) _cachedUrduVoice = _pickUrduVoice(speechSynthesis.getVoices());
+    const voices = speechSynthesis.getVoices();
+    if (!_cachedVoice) _cachedVoice = _pickEnglishVoice(voices);
+    if (!_cachedUrduVoice) _cachedUrduVoice = _pickUrduVoice(voices);
 
     speechSynthesis.cancel();
 
@@ -505,9 +542,17 @@ function speakResponse(text, source) {
         rate = source === 'qwen' ? 0.80 : 0.90; // slower helps English voices with Roman-Urdu words
     }
 
+    // Refuse to speak rather than speak wrongly. Without this guard a device
+    // that has no en/ur/hi voice still calls speak(), and Chrome substitutes its
+    // default voice -- so the reply is read aloud in an unrelated language.
+    if (!voice || !_SPEAKABLE_LANG_RE.test(voice.lang || '')) {
+        _warnNoSpeakableVoice(voices);
+        return;
+    }
+
     const utterance = new SpeechSynthesisUtterance(spoken);
-    if (voice) utterance.voice = voice;
-    utterance.lang = lang;
+    utterance.voice = voice;
+    utterance.lang = voice.lang || lang;
     utterance.rate = rate;
     utterance.pitch = 1.0;
 

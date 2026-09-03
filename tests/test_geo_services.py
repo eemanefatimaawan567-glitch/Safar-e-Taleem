@@ -112,8 +112,44 @@ class TestWalkingRoute:
 
         assert route['source'] == 'osrm'
         assert route['distance_km'] == pytest.approx(1.2)
-        assert route['duration_min'] == 15
+        # Duration is derived from distance at WALKING_SPEED_KMH (1.2 km -> 16
+        # min), not copied from OSRM's 900 s. See the next test for why.
+        assert route['duration_min'] == 16
         assert route['waypoints'] == [[33.6789, 72.9744], [33.6800, 72.9760], [33.6840, 72.9800]]
+
+    def test_osrm_driving_duration_is_replaced_with_walking_pace(self, monkeypatch):
+        """The public OSRM demo server ignores the profile segment and answers
+        EVERY request with its car routing -- verified by requesting 'foot',
+        'driving', 'bike' and nonsense profiles for one coordinate pair and
+        getting byte-identical results (1.53 km in 3.1 min = 29 km/h).
+
+        The geometry is still worth keeping because it follows real roads, but
+        the duration is a driving time. Reporting it as a walk would tell a
+        parent that 1.5 km takes 3 minutes.
+        """
+        payload = {'routes': [{
+            'distance': 1530.0,      # real road distance
+            'duration': 186.0,       # 3.1 min == 29 km/h: a car, not a child
+            'geometry': {'coordinates': [[73.1543, 33.5348], [73.1600, 33.5400]]},
+        }]}
+        monkeypatch.setattr(
+            geo_services.requests, 'get',
+            lambda url, params=None, headers=None, timeout=None: FakeResponse(payload=payload),
+        )
+        route = geo_services.walking_route(33.5348, 73.1543, 33.5400, 73.1600)
+
+        assert route['source'] == 'osrm'
+        assert route['distance_km'] == pytest.approx(1.53)
+        assert route['duration_min'] == 20              # 1.53 km at 4.5 km/h
+        assert route['duration_min'] != round(186 / 60)  # ...not the car's 3 min
+
+    def test_both_sources_quote_the_same_walking_pace(self):
+        """A routed path and a straight-line path must not disagree about pace,
+        or the map readout changes meaning when the network drops."""
+        assert geo_services.WALKING_SPEED_KMH == 4.5
+        assert geo_services._walking_minutes(4.5) == 60
+        assert geo_services._walking_minutes(1.53) == 20
+        assert geo_services._walking_minutes(0.0) == 1   # never a "0 min walk"
 
     def test_osrm_failure_falls_back_to_interpolation(self, monkeypatch):
         def fake_get(url, params=None, headers=None, timeout=None):
@@ -143,4 +179,5 @@ class TestWalkingRoute:
         monkeypatch.setattr(geo_services.requests, 'get', fake_get)
         route = geo_services.walking_route(0.0, 0.0, 0.045, 0.0)  # ~5 km north
         assert route['distance_km'] == pytest.approx(5.0, abs=0.2)
-        assert route['duration_min'] == pytest.approx(5.0 / 4.5 * 60, abs=2)
+        assert route['duration_min'] == pytest.approx(
+            5.0 / geo_services.WALKING_SPEED_KMH * 60, abs=2)

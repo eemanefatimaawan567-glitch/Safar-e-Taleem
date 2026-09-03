@@ -33,7 +33,25 @@ Hackathon.
 | **Live Commute Safety** | Parents share live location on the school run (real-time SSE map, auto-reconnect + polling fallback). One-tap **SOS** instantly alerts every pod-mate and the principal with an OpenStreetMap location link. |
 | **Group Coordinator & Pod Alerts** | Each pod gets a deterministic Group Coordinator who can broadcast alerts ("van is 10 minutes late"); members receive them on WhatsApp/SMS and read them in the in-app alert feed. |
 | **WhatsApp / SMS / IVR delivery** | Curriculum packets and emergency alerts go out through real provider APIs (Meta WhatsApp Cloud, Pakistani HTTP SMS gateways) — with a zero-setup **simulation mode** so demos always work. |
-| **Offline-first PWA** | Service worker + web manifest; installable and works on flaky 3G networks. |
+| **Offline-first PWA** | Service worker + web manifest; installable, works on flaky 3G, and caches OpenStreetMap tiles in their own store so the safety map still renders offline. |
+
+## 📸 Screenshots
+
+**Landing page** — live fuel monitor and the six tools at a glance
+
+![Landing page](docs/images/landing-page.png)
+
+**Parent dashboard** — the real walking route to school, drawn from OpenStreetMap routing
+
+![Parent dashboard with live map and walking route](docs/images/parent-dashboard-map.png)
+
+**Principal dashboard** — fuel price monitoring, OGRA-style alerts and hybrid scheduling
+
+![Principal dashboard](docs/images/principal-dashboard.png)
+
+**Registration** — a typed address resolved to real coordinates, for families who cannot or do not want to use GPS
+
+![Registration address lookup](docs/images/register-address-lookup.png)
 
 ## 🛠 Tech stack
 

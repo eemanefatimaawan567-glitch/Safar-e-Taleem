@@ -209,7 +209,8 @@ class TestRouteDegradation:
             def json(self):
                 return {'routes': [{
                     'distance': 900.0,
-                    'duration': 700.0,
+                    # 3 min for 900 m is 18 km/h — the demo server's car routing.
+                    'duration': 180.0,
                     'geometry': {'coordinates': [[73.1543, 33.5348], [73.1600, 33.5400]]},
                 }]}
 
@@ -218,7 +219,10 @@ class TestRouteDegradation:
 
         assert route['source'] == 'osrm'
         assert route['waypoints'][0] == pytest.approx(list(AYESHA_HOME), abs=1e-6)
+        assert route['waypoints'][-1] == pytest.approx(list(BAHRIA_SCHOOL), abs=1e-6)
         assert route['distance_km'] == 0.9
+        # The road distance is kept but retimed to a walk, so the map can never
+        # claim a 900 m stroll takes 3 minutes.
         assert route['duration_min'] == 12
 
     def test_unreachable_osrm_still_returns_a_line(self):
@@ -226,6 +230,7 @@ class TestRouteDegradation:
         route = geo_services.walking_route(*AYESHA_HOME, *BAHRIA_SCHOOL)
         assert route['source'] == 'interpolated'
         assert len(route['waypoints']) == 10
+        assert route['duration_min'] >= 1
 
 
 # ============================================================

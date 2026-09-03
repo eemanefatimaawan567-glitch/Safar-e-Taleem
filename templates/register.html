@@ -152,7 +152,7 @@
 
         <div class="form-group">
             <label>Address</label>
-            <input type="text" name="address" placeholder="e.g. House 12, Street 5, Block B">
+            <input type="text" name="address" id="address-input" placeholder="e.g. House 12, Street 5, Block B">
         </div>
 
         <div class="form-group">
@@ -160,6 +160,10 @@
             <button type="button" class="btn-location" id="geo-btn" onclick="detectLocation()">
                 <i class="fa-solid fa-crosshairs"></i>
                 <span id="geo-text">Use GPS to find my area</span>
+            </button>
+            <button type="button" class="btn-location" id="geocode-btn" onclick="geocodeAddress()">
+                <i class="fa-solid fa-magnifying-glass-location"></i>
+                <span id="geocode-text">No GPS? Look up my address</span>
             </button>
             <input type="hidden" name="latitude" id="lat-input">
             <input type="hidden" name="longitude" id="lon-input">
@@ -237,6 +241,47 @@ function detectLocation() {
         },
         { enableHighAccuracy: true, timeout: 10000 }
     );
+}
+
+// Address lookup - turns a typed address into a real home pin via
+// /api/geocode (Nominatim). Without it, families who decline GPS permission
+// register with no coordinates and silently fall back to the default commute
+// distance, which skews their transport recommendation and savings.
+function geocodeAddress() {
+    const btn = document.getElementById('geocode-btn');
+    const text = document.getElementById('geocode-text');
+    const address = document.getElementById('address-input').value.trim();
+    const area = document.getElementById('neighborhood-select').value;
+
+    const query = [address, area === 'other' ? '' : area, 'Pakistan']
+        .filter(Boolean).join(', ');
+
+    // Need something more specific than just the country to look up
+    if (query.replace(/Pakistan|,/g, '').trim().length < 3) {
+        text.textContent = 'Type your address or select your area first';
+        return;
+    }
+
+    text.textContent = 'Looking up address...';
+    btn.disabled = true;
+
+    fetch('/api/geocode?q=' + encodeURIComponent(query))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const hit = (data.results || [])[0];
+            if (hit) {
+                document.getElementById('lat-input').value = hit.latitude.toFixed(6);
+                document.getElementById('lon-input').value = hit.longitude.toFixed(6);
+                text.textContent = 'Found: ' + hit.label.split(',')[0];
+                btn.classList.add('active');
+            } else {
+                text.textContent = 'No match - please select your area from the list';
+            }
+        })
+        .catch(function () {
+            text.textContent = 'Lookup unavailable - please select your area manually';
+        })
+        .finally(function () { btn.disabled = false; });
 }
 </script>
 

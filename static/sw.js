@@ -2,6 +2,8 @@
    Safar-e-Taleem — Service Worker (Offline-First Shell)
    Caches the core design-system CSS + landing page so the app
    loads instantly on repeat visits, even on flaky 3G networks.
+   OpenStreetMap tiles get their own cache-first store so the
+   live safety map still renders when the network drops.
    ============================================================ */
 
 const CACHE_NAME = 'safar-e-taleem-v3';
@@ -12,6 +14,29 @@ const STATIC_ASSETS = [
   '/static/images/favicon.svg',
   '/static/manifest.json',
 ];
+
+// OpenStreetMap tiles live in their OWN cache: they are immutable per z/x/y,
+// so they can be served cache-first and survive app-shell version bumps.
+const TILE_CACHE_NAME = 'safar-e-taleem-tiles-v1';
+const TILE_HOSTS = [
+  'tile.openstreetmap.org',
+  'a.tile.openstreetmap.org',
+  'b.tile.openstreetmap.org',
+  'c.tile.openstreetmap.org',
+];
+// Panning across a city can pull thousands of tiles; cap the cache so quota
+// pressure never evicts the app shell along with it.
+const MAX_TILES = 250;
+
+// cache.keys() is insertion-ordered, so the front of the list is the oldest.
+function trimTileCache(cache) {
+  return cache.keys().then((keys) => {
+    if (keys.length <= MAX_TILES) return undefined;
+    return keys
+      .slice(0, keys.length - MAX_TILES)
+      .reduce((chain, key) => chain.then(() => cache.delete(key)), Promise.resolve());
+  });
+}
 
 // INSTALL — pre-cache static shell
 self.addEventListener('install', (event) => {
@@ -31,7 +56,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          .filter((key) => key !== CACHE_NAME && key !== TILE_CACHE_NAME)
           .map((key) => caches.delete(key))
       )
     )
@@ -60,6 +85,26 @@ self.addEventListener('fetch', (event) => {
         }).catch(() => cached); // offline fallback to stale cache
         return cached || fetchPromise;
       })
+    );
+    return;
+  }
+
+  // Map tiles: cache-first. A tile for a given z/x/y never changes, so the
+  // cached copy is always correct — and it is what keeps the safety map
+  // readable offline instead of rendering grey squares.
+  if (request.method === 'GET' && TILE_HOSTS.includes(url.hostname)) {
+    event.respondWith(
+      caches.open(TILE_CACHE_NAME).then((cache) =>
+        cache.match(request).then((cached) => {
+          if (cached) return cached;
+          return fetch(request).then((response) => {
+            if (response.ok) {
+              cache.put(request, response.clone()).then(() => trimTileCache(cache));
+            }
+            return response;
+          });
+        })
+      )
     );
     return;
   }

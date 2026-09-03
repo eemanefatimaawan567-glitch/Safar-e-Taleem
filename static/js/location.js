@@ -111,6 +111,11 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
+            // Tiles must be requested in CORS mode. As plain <img> loads they come
+            // back opaque, which the service worker cannot cache (and which Chrome
+            // bills at ~7 MB each against storage quota), so the offline map would
+            // stay empty. OpenStreetMap serves Access-Control-Allow-Origin: *.
+            crossOrigin: 'anonymous',
         }).addTo(map);
     }
 
@@ -141,15 +146,19 @@
         const name = (liveUser().school || {}).name || 'School';
         const km = routeMeta ? routeMeta.distance_km : null;
         const mins = routeMeta ? routeMeta.duration_min : null;
-        const routed = routeMeta && routeMeta.source === 'osrm';
+        // 'osrm' means the line follows the real road network, so it is LONGER
+        // than the straight-line number the dashboard quotes for fuel maths.
+        // Label which one this is rather than letting the two look like a
+        // contradiction. Either way the minutes are an estimate at walking pace
+        // (the OSRM demo server only routes cars — see modules/geo_services.py).
+        const kind = routeMeta && routeMeta.source === 'osrm' ? 'road path' : 'estimated path';
 
         el.style.display = 'flex';
         el.innerHTML = '<i class="fa-solid fa-route" style="color:#0ea5e9;"></i><span>'
             + '<strong>' + name + '</strong>'
-            + (km != null ? ' — ' + km + ' km' : '')
-            + (mins != null ? ' • ' + mins + ' min walk' : '')
-            + ' <em style="opacity:.65;font-style:normal;">'
-            + (routed ? '(real walking route)' : '(estimated path)') + '</em></span>';
+            + (km != null ? ' — ' + km + ' km ' + kind : '')
+            + (mins != null ? ' • ~' + mins + ' min walk' : '')
+            + '</span>';
     }
 
     async function loadRoute() {

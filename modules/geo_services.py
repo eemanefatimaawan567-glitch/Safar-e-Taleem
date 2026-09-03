@@ -3,8 +3,9 @@ Safar-e-Taleem — Geo Services (free & keyless)
 
   • geocode(query)        — address → coordinates via OpenStreetMap Nominatim
                             (restricted to Pakistan, 24h server-side cache)
-  • walking_route(...)    — real walking route via the public OSRM demo server,
-                            with a straight-line interpolation fallback so the
+  • walking_route(...)    — road-following route geometry from the public OSRM
+                            demo server, timed at a walking pace, with a
+                            straight-line interpolation fallback so the
                             live-tracking demo keeps working offline.
 
 Both functions never raise: any failure degrades to an empty/interpolated
@@ -25,6 +26,15 @@ OSRM_URL = 'https://router.project-osrm.org/route/v1/foot/{start};{end}'
 USER_AGENT = 'Safar-e-Taleem/1.0 (school transport app; demo)'
 
 GEOCODE_TTL = 24 * 3600  # 24 hours
+
+# Average pace for a child walking to school. We have to derive the walking TIME
+# ourselves: the public OSRM demo server ignores the profile segment completely
+# -- 'foot', 'driving', 'bike' and even nonsense profiles all return the
+# byte-identical CAR route (measured on the same coordinate pair: 1.53 km in
+# 3.1 min = 29 km/h for every profile tried). Its geometry is still worth
+# having because it follows the real road network, but its duration is a driving
+# time, and trusting it would tell a parent a 1.5 km walk takes 3 minutes.
+WALKING_SPEED_KMH = 4.5
 
 # query -> (timestamp, results)
 _geocode_cache = {}
@@ -91,12 +101,22 @@ def _interpolate(start_lat, start_lon, end_lat, end_lon, points=10):
     ]
 
 
+def _walking_minutes(km):
+    """Distance -> minutes at WALKING_SPEED_KMH, never below a minute."""
+    return max(1, round(km / WALKING_SPEED_KMH * 60))
+
+
 def walking_route(start_lat, start_lon, end_lat, end_lon):
     """
-    Real walking route (OSRM foot profile) between two points.
-    Returns {'distance_km', 'duration_min', 'waypoints': [[lat, lon], ...], 'source'}.
-    Falls back to a straight-line interpolation when OSRM is unreachable,
-    estimating duration at an average walking pace of 4.5 km/h.
+    Road-following route between two points, timed at a walking pace.
+
+    Returns {'distance_km', 'duration_min', 'waypoints': [[lat, lon], ...],
+    'source'}, where source is 'osrm' when the geometry came from the road
+    network and 'interpolated' when it is a straight-line stand-in (OSRM
+    unreachable), so an offline demo still draws something.
+
+    `duration_min` is ALWAYS derived from `distance_km` at WALKING_SPEED_KMH and
+    never taken from OSRM -- see the note on that constant.
     """
     start = f'{start_lon},{start_lat}'
     end = f'{end_lon},{end_lat}'
@@ -112,9 +132,11 @@ def walking_route(start_lat, start_lon, end_lat, end_lon):
         # OSRM geometry is [lon, lat] — flip to Leaflet's [lat, lon]
         waypoints = [[lat, lon] for lon, lat in route['geometry']['coordinates']]
         if len(waypoints) >= 2:
+            km = round(route['distance'] / 1000, 2)
             return {
-                'distance_km': round(route['distance'] / 1000, 2),
-                'duration_min': round(route['duration'] / 60),
+                'distance_km': km,
+                # Deliberately NOT route['duration']: that is a driving time.
+                'duration_min': _walking_minutes(km),
                 'waypoints': waypoints,
                 'source': 'osrm',
             }
@@ -122,10 +144,10 @@ def walking_route(start_lat, start_lon, end_lat, end_lon):
         logger.warning('OSRM route failed (%s) — interpolating straight line', e)
 
     waypoints = _interpolate(start_lat, start_lon, end_lat, end_lon)
-    dist = distance_km(start_lat, start_lon, end_lat, end_lon)
+    dist = round(distance_km(start_lat, start_lon, end_lat, end_lon), 2)
     return {
-        'distance_km': round(dist, 2),
-        'duration_min': round(dist / 4.5 * 60),
+        'distance_km': dist,
+        'duration_min': _walking_minutes(dist),
         'waypoints': waypoints,
         'source': 'interpolated',
     }

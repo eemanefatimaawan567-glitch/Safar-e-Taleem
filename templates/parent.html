@@ -125,7 +125,13 @@
                     <i class="fa-solid fa-route metric-icon"></i>
                 </div>
                 <div class="metric-value" style="font-size: 1.2rem;">{{ recommendation }}</div>
-                <div class="metric-change">Based on {{ sample_distance }}km distance • DBSCAN clustered</div>
+                <div class="metric-change">
+                    {% if distance_is_measured and school %}
+                        {{ sample_distance }} km to {{ school.name }} &bull; real home-to-school distance
+                    {% else %}
+                        Based on {{ sample_distance }} km estimate &bull; DBSCAN clustered
+                    {% endif %}
+                </div>
             </div>
             <div class="metric ui-card">
                 <div class="metric-header">
@@ -264,6 +270,9 @@
                 </button>
             </div>
 
+            <div id="route-info"
+                style="display: none; gap: 8px; align-items: center; font-size: 0.825rem; color: var(--text-muted); margin-bottom: 10px;"></div>
+
             <div id="location-map" style="width: 100%; height: 320px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;"></div>
 
             <div id="pod-location-list"></div>
@@ -354,12 +363,14 @@
 
 </div>
 
-<script>
-    window.LIVE_LOCATION_USER = {
-        latitude: {{ user.latitude if user and user.latitude else 33.6844 }},
-        longitude: {{ user.longitude if user and user.longitude else 73.0479 }}
-    };
-</script>
+<!-- Live-tracking config as JSON (not inline JS) so the server-rendered values
+     can't break the script or inject anything. Read by static/js/location.js.
+     `school` is the real school pin + measured home-to-school commute. -->
+<script id="live-location-config" type="application/json">{{ {
+    'latitude': user.latitude if user and user.latitude else 33.6844,
+    'longitude': user.longitude if user and user.longitude else 73.0479,
+    'school': school
+}|tojson }}</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="{{ url_for('static', filename='js/location.js') }}"></script>
@@ -380,12 +391,12 @@
 
         <div class="chat-body" id="chat-messages">
             <div class="message bot-message">
-                👋 Assalam-o-Alaikum! Main Safar-e-Taleem Assistant hoon. Tap the mic or type below to ask how to save fuel costs!
+                👋 Assalam-o-Alaikum! Main Safar-e-Taleem Assistant hoon. Petrol ka price, school transport ya saving — mic dabao ya neeche apna question likho!
             </div>
         </div>
 
         <div class="chat-footer">
-            <input type="text" id="chat-input" placeholder="Type in Roman-Urdu or English..." onkeypress="handleKeyPress(event)">
+            <input type="text" id="chat-input" placeholder="Apna question yahan likho..." onkeypress="handleKeyPress(event)">
             <button class="chat-mic-btn" id="parent-mic-btn" onclick="recordVoiceCommand()" title="Voice Assistant" aria-pressed="false" aria-label="Voice input">
                 <i class="fa-solid fa-microphone" id="parent-mic-icon"></i>
             </button>
@@ -396,7 +407,7 @@
     </div>
 
     <div class="robot-speech-bubble" id="bot-bubble">
-        👋 Ask Ammi/Abba how to reduce transport costs!
+        👋 Petrol ka kharcha kam karna hai? Mujh se poocho!
     </div>
 
     <div class="robot-avatar-wrapper" onclick="toggleRobotAssistant()">

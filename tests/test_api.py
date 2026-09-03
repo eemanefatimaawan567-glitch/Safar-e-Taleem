@@ -10,6 +10,7 @@ demo families), disables the network and turns rate limiting off — except
 in TestRateLimiting, which re-enables it deliberately.
 """
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 
@@ -607,8 +608,19 @@ class TestChatAssistant:
     def test_empty_message_gets_prompt(self, client):
         response = client.post('/api/ask-ammi-abba', json={'message': ''})
         assert response.status_code == 200
+        # This nudge is the bot talking, so it follows the same Roman Urdu +
+        # English style as every other assistant reply (see test_language_style).
         assert response.get_json()['text_response'] == \
-            'Please type or speak your question. I am here to help!'
+            'Apna question type karo ya mic button dabao — main aap ki madad ke liye yahan hoon!'
+
+    def test_empty_message_prompt_is_in_roman_urdu(self, client):
+        """Guards the style contract at the HTTP layer, not just the module."""
+        text = client.post('/api/ask-ammi-abba',
+                           json={'message': '   '}).get_json()['text_response']
+        assert not re.search(r'[\u0600-\u06FF]', text), 'no Urdu script'
+        assert not re.search(r'\b(darkhwast|maloomat|faraham|please type)\b',
+                             text, re.IGNORECASE)
+        assert 'question' in text and 'mic' in text
 
     def test_question_answered_from_fallback(self, client):
         login_as(client, AYESHA)

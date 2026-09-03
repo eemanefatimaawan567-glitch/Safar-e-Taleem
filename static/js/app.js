@@ -452,9 +452,11 @@ async function sendMessage() {
         if (_isNetworkError(e)) {
             const msg = _offlineMessage('The AI assistant');
             _showOfflineNotice(msg);
-            appendMessage("You're offline — I can't reach the server right now. Please check your connection and try again.", 'bot');
+            // Chat bubbles are the assistant's own voice, so they follow the
+            // same Roman Urdu + English style as every server-side reply.
+            appendMessage("Aap offline hain — server se connect nahi ho raha. Internet connection check karo aur phir try karo.", 'bot');
         } else {
-            appendMessage("Sorry, I couldn't connect right now. Please try again.", 'bot');
+            appendMessage("Sorry, abhi connect nahi ho raha. Thori der baad phir try karo.", 'bot');
         }
     }
 }
@@ -1015,6 +1017,17 @@ if (document.getElementById('live-price')) {
 
 // Load petrol history chart on principal page
 loadPetrolChart();
+
+// Capture safety: cards fade in with `animation: fadeInUp ... both`, which holds
+// opacity:0 until the animation runs. That looks polished live, but a full-page
+// screenshot, slide capture or early screen-share can catch sections mid-delay
+// and render them blank. After the reveals have had time to play we neutralise
+// them, so nothing can ever be caught invisible. The ambient float/pulse effects
+// keep running (see the CAPTURE SAFETY block in static/css/style.css).
+const ANIM_SETTLE_MS = 1800; // longest reveal delay + duration in style.css
+setTimeout(() => {
+    document.documentElement.classList.add('anim-off');
+}, ANIM_SETTLE_MS);
 
 /* ---------- PWA: SERVICE WORKER REGISTRATION ---------- */
 if ('serviceWorker' in navigator) {

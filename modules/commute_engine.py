@@ -135,7 +135,29 @@ def recommend_transport(
 # DBSCAN CLUSTERING — groups nearby families
 # ---------------------------------------------------------
 
-def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
+def _avg_school_distance(members, school_distance_fn):
+    """Average home->school distance across members, or None when unknown.
+
+    `school_distance_fn` is caller-supplied (see modules.schools) so this
+    module stays free of any registry/DB dependency. A resolver that raises or
+    returns None for one member must not break the whole cluster.
+    """
+    if not school_distance_fn:
+        return None
+    values = []
+    for member in members:
+        try:
+            km = school_distance_fn(member)
+        except Exception:
+            km = None
+        if km:
+            values.append(km)
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
+
+
+def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2, school_distance_fn=None):
     """
     Run DBSCAN clustering on a list of User objects with lat/lng.
 
@@ -143,6 +165,11 @@ def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
         users: list of User objects (must have .latitude, .longitude)
         eps_km: clustering radius in km (default 0.5 km)
         min_samples: minimum users to form a cluster
+        school_distance_fn: optional callable(user) -> home->school km. When
+            given, `transport_type` is chosen from the REAL commute distance;
+            without it the function falls back to the cluster spread, which
+            measures how far neighbours live from each other and so always
+            looks walkable.
 
     Returns:
         list of dicts, each representing a transport group:
@@ -150,7 +177,8 @@ def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
             'cluster_id': int,
             'members': [User, ...],
             'transport_type': str,
-            'avg_distance_km': float,
+            'avg_distance_km': float,          # spread between members' homes
+            'avg_school_distance_km': float,   # home -> school (None if unknown)
             'school_name': str
         }]
     """
@@ -162,11 +190,14 @@ def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
     if len(geo_users) < min_samples:
         # Not enough users to cluster — return single group if any
         if geo_users:
+            school_dist = _avg_school_distance(geo_users, school_distance_fn)
+            commute = school_dist if school_dist else 2.5
             return [{
                 'cluster_id': 0,
                 'members': geo_users,
-                'transport_type': recommend_transport(2.5, len(geo_users)),
+                'transport_type': recommend_transport(commute, len(geo_users)),
                 'avg_distance_km': 2.5,
+                'avg_school_distance_km': school_dist,
                 'school_name': geo_users[0].school_name or 'Unknown School',
             }]
         return []
@@ -206,24 +237,31 @@ def cluster_families(users, eps_km=GROUP_DISTANCE_KM, min_samples=2):
                 count += 1
         avg_dist = round(total_dist / count, 2) if count > 0 else 0
 
+        school_dist = _avg_school_distance(members, school_distance_fn)
         school = members[0].school_name or 'Unknown School'
-        transport = recommend_transport(avg_dist, len(members))
+        # The recommendation must describe how the kids get to SCHOOL, so it
+        # uses the real commute when we can resolve one. The cluster spread is
+        # only a last-resort proxy (it is how far the homes are from each other).
+        transport = recommend_transport(school_dist if school_dist else avg_dist, len(members))
 
         results.append({
             'cluster_id': int(cid),
             'members': members,
             'transport_type': transport,
             'avg_distance_km': avg_dist,
+            'avg_school_distance_km': school_dist,
             'school_name': school,
         })
 
     # Add noise users as solo groups
     for i, user in enumerate(noise_users):
+        solo_dist = _avg_school_distance([user], school_distance_fn)
         results.append({
             'cluster_id': -1,
             'members': [user],
-            'transport_type': 'Individual Transport',
+            'transport_type': recommend_transport(solo_dist, 1) if solo_dist else 'Individual Transport',
             'avg_distance_km': 0,
+            'avg_school_distance_km': solo_dist,
             'school_name': user.school_name or 'Unknown School',
         })
 

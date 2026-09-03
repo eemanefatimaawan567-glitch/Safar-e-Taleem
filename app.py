@@ -11,9 +11,11 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text as _sql_text
 from werkzeug.security import generate_password_hash, check_password_hash
 from modules.petrol_price import get_petrol_price as fetch_live_petrol_price
-from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, distance_km, cluster_families, form_study_pods
+from modules.commute_engine import recommend_transport, calculate_fuel_cost, calculate_carpool_saving, cluster_families, form_study_pods
 from modules.curriculum import get_pack, get_all_packs, CURRICULUM_PACKS
 from modules.notification import send_notification
+from modules.schools import commute_distance_km, school_info
+from modules.geo_services import walking_route, geocode
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -393,15 +395,18 @@ def index():
     all_parents = User.query.filter_by(role='parent').all()
     total_students = sum(u.children_count for u in all_parents) or 0
 
-    # Count real transport groups via DBSCAN
-    clusters = cluster_families(all_parents) if all_parents else []
+    # Count real transport groups via DBSCAN. Passing the school-distance
+    # resolver makes each group's transport_type describe the actual commute
+    # instead of how far the members' houses happen to be from each other.
+    clusters = cluster_families(all_parents, school_distance_fn=commute_distance_km) if all_parents else []
     group_count = len([c for c in clusters if c['cluster_id'] != -1]) or 0
 
-    # Calculate real estimated savings
+    # Calculate real estimated savings from the home -> school commute
     total_savings = 0
     for c in clusters:
         if c['cluster_id'] != -1 and len(c['members']) >= 2:
-            info = calculate_carpool_saving(len(c['members']), max(c['avg_distance_km'], 1.0) * 2, petrol['price'])
+            commute = c.get('avg_school_distance_km') or c['avg_distance_km']
+            info = calculate_carpool_saving(len(c['members']), max(commute, 1.0) * 2, petrol['price'])
             total_savings += info['monthly_saving']
 
     return render_template(
@@ -567,8 +572,13 @@ def parent_dashboard():
     user = get_current_user()
     petrol = get_tracked_petrol_price()
 
-    # Use real GPS distance if user has coordinates, else default
-    sample_distance = 2.5  # km default
+    # Real home -> school commute (school registry, then Nominatim). This used
+    # to be overwritten with the DBSCAN cluster spread, which measures how far
+    # neighbours live from EACH OTHER — so a family 8 km from school was told
+    # to walk whenever two neighbours lived nearby.
+    school = school_info(user)
+    sample_distance = commute_distance_km(user)
+    distance_is_measured = bool(school and school.get('distance_km') is not None)
     sample_group = max(user.children_count, 2) if user and user.children_count else 3
 
     # Find nearby parents using DBSCAN clustering on same neighborhood
@@ -585,16 +595,13 @@ def parent_dashboard():
 
         # Run DBSCAN clustering on neighborhood parents
         if len(neighborhood_parents) >= 2:
-            clusters = cluster_families(neighborhood_parents)
+            clusters = cluster_families(neighborhood_parents, school_distance_fn=commute_distance_km)
             # Find user's cluster
             for c in clusters:
                 member_ids = [m.id for m in c['members']]
                 if user.id in member_ids:
                     nearby_parents = [m for m in c['members'] if m.id != user.id][:5]
                     user_cluster_type = c['transport_type']
-                    # Use real cluster distance if available
-                    if c['avg_distance_km'] > 0:
-                        sample_distance = max(c['avg_distance_km'], 0.5)
                     break
             else:
                 # User not in any cluster (noise) — fallback to neighborhood query
@@ -631,6 +638,8 @@ def parent_dashboard():
         nearby_parents=nearby_parents,
         user_cluster_type=user_cluster_type,
         sample_distance=round(sample_distance, 1),
+        school=school,
+        distance_is_measured=distance_is_measured,
         is_coordinator=is_coordinator,
         coordinator_name=coordinator_name,
         coordinator_id=coordinator.id if coordinator else None,
@@ -649,20 +658,21 @@ def principal_dashboard():
     total_students = sum(u.children_count for u in all_parents) or 1
 
     # Run DBSCAN clustering for transport breakdown
-    clusters = cluster_families(all_parents) if all_parents else []
+    clusters = cluster_families(all_parents, school_distance_fn=commute_distance_km) if all_parents else []
     walking_groups = len([c for c in clusters if 'Walking' in c['transport_type']])
     carpool_groups = len([c for c in clusters if 'Carpool' in c['transport_type'] or 'Shared' in c['transport_type']])
     solo_count = len([c for c in clusters if c['cluster_id'] == -1])
 
-    # Calculate real average monthly cost
+    # Calculate real average monthly cost from each family's own home -> school
+    # commute (previously every family was assumed to live 2.5 km away).
     total_costs = []
+    commute_distances = []
     for u in all_parents:
-        d = 2.5  # default
-        if u.latitude and u.longitude and u.school_name:
-            # Use user's actual distance estimate
-            d = 2.5  # could be refined with school coords
+        d = commute_distance_km(u)
+        commute_distances.append(d)
         total_costs.append(calculate_fuel_cost(d * 2, petrol['price']))
     avg_monthly_cost = round(sum(total_costs) / len(total_costs)) if total_costs else 0
+    avg_commute_km = round(sum(commute_distances) / len(commute_distances), 1) if commute_distances else 0
 
     # Mohallah Study Pods: match device-owning families with nearby families
     # who don't have one, for shared-screen learning on hybrid/online days.
@@ -682,6 +692,7 @@ def principal_dashboard():
         total_parents=total_parents,
         total_students=total_students,
         avg_monthly_cost=avg_monthly_cost,
+        avg_commute_km=avg_commute_km,
         walking_groups=walking_groups,
         carpool_groups=carpool_groups,
         solo_count=solo_count,
@@ -788,7 +799,9 @@ def ask_ammi_abba():
         history = normalize_chat_history(data.get('history'))
 
     if not user_query.strip():
-        return jsonify({'text_response': 'Please type or speak your question. I am here to help!'})
+        # Every assistant reply follows the same Roman Urdu + English style,
+        # including this nudge — it is the bot talking, not a system error.
+        return jsonify({'text_response': 'Apna question type karo ya mic button dabao — main aap ki madad ke liye yahan hoon!'})
 
     # Get logged-in user context
     user = get_current_user()
@@ -796,6 +809,10 @@ def ask_ammi_abba():
     db_context = {}
 
     if user:
+        # The AI quotes this as "school X km door hai", so it has to be the real
+        # home -> school commute — not the spread between neighbours' houses.
+        commute_km = round(commute_distance_km(user), 1)
+
         user_context = {
             'name': user.name,
             'neighborhood': user.neighborhood or '',
@@ -804,6 +821,7 @@ def ask_ammi_abba():
             'school_name': user.school_name or '',
             'latitude': user.latitude,
             'longitude': user.longitude,
+            'school_distance_km': commute_km,
         }
 
         # Compute real DB context: nearby families, cluster type, distance
@@ -814,7 +832,7 @@ def ask_ammi_abba():
             ).all()
 
             if len(neighborhood_parents) >= 2:
-                clusters = cluster_families(neighborhood_parents)
+                clusters = cluster_families(neighborhood_parents, school_distance_fn=commute_distance_km)
                 for c in clusters:
                     member_ids = [m.id for m in c['members']]
                     if user.id in member_ids:
@@ -823,27 +841,24 @@ def ask_ammi_abba():
                             'nearby_count': len(nearby_members),
                             'nearby_names': [m.name for m in nearby_members],
                             'cluster_type': c['transport_type'],
-                            'cluster_distance': c['avg_distance_km'] if c['avg_distance_km'] > 0 else max(c.get('max_distance_km', 1.0), 0.5),
+                            'cluster_distance': commute_km,
                         }
                         break
                 else:
-                    # User is noise / no cluster — estimate from nearest pair
+                    # User is noise / no cluster — the commute is still known
                     others = [u for u in neighborhood_parents if u.id != user.id]
-                    nearest_km = 1.0
-                    if others and user.latitude and user.longitude:
-                        nearest_km = min(distance_km(user.latitude, user.longitude, u.latitude, u.longitude) for u in others if u.latitude and u.longitude) or 1.0
                     db_context = {
                         'nearby_count': len(others),
                         'nearby_names': [u.name for u in others],
-                        'cluster_type': 'Individual Transport',
-                        'cluster_distance': round(max(nearest_km, 0.3), 1),
+                        'cluster_type': recommend_transport(commute_km, 1),
+                        'cluster_distance': commute_km,
                     }
             else:
                 db_context = {
                     'nearby_count': 0,
                     'nearby_names': [],
-                    'cluster_type': 'Individual Transport',
-                    'cluster_distance': 1.0,
+                    'cluster_type': recommend_transport(commute_km, 1),
+                    'cluster_distance': commute_km,
                 }
 
     # Fetch live petrol data (with DB tracking)
@@ -1138,6 +1153,79 @@ def build_pod_payload(user):
 def location_pod():
     """Poll live pod locations (fallback path — clients prefer the SSE stream)."""
     return jsonify(build_pod_payload(get_current_user()))
+
+
+# ---------------------------------------------------------
+# GEO SERVICES — real walking route + address lookup
+# ---------------------------------------------------------
+# Thin, validated wrappers over modules/geo_services.py so the map can draw the
+# ACTUAL footpath to school (OSRM) instead of a straight line between markers,
+# and so registration can turn a typed address into coordinates (Nominatim).
+# Both upstream helpers already degrade gracefully when offline.
+
+@app.route('/api/route', methods=['GET'])
+@login_required
+@rate_limit(60, 60)
+def api_route():
+    """Walking route between two points.
+
+    Query params:
+      to=school                              -> current user's home -> school
+      start_lat, start_lon, end_lat, end_lon -> explicit coordinates
+
+    Returns {'distance_km','duration_min','waypoints','source','destination'}
+    where `source` is 'osrm' for a real routed footpath and 'interpolated'
+    when the public router is unreachable, so an offline demo still draws a
+    line instead of an empty map.
+    """
+    user = get_current_user()
+    args = request.args
+    destination = None
+
+    start_lat, start_lon, start_err = parse_coordinates({
+        'latitude': args.get('start_lat'), 'longitude': args.get('start_lon')})
+    if start_err:
+        # No explicit start given — fall back to the account's home pin
+        if args.get('start_lat') is not None or args.get('start_lon') is not None:
+            return jsonify({'error': f'Invalid start position: {start_err}'}), 400
+        start_lat, start_lon, start_err = None, None, None
+
+    end_lat, end_lon, end_err = parse_coordinates({
+        'latitude': args.get('end_lat'), 'longitude': args.get('end_lon')})
+    if end_err:
+        if args.get('end_lat') is not None or args.get('end_lon') is not None:
+            return jsonify({'error': f'Invalid end position: {end_err}'}), 400
+        end_lat, end_lon = None, None
+
+    if end_lat is None or end_lon is None:
+        target = school_info(user)
+        if not target:
+            return jsonify({'error': 'School location is not available for this account'}), 404
+        end_lat, end_lon = target['latitude'], target['longitude']
+        destination = target
+
+    if start_lat is None or start_lon is None:
+        if not (user and user.latitude and user.longitude):
+            return jsonify({'error': 'start_lat and start_lon are required'}), 400
+        start_lat, start_lon = user.latitude, user.longitude
+
+    route = walking_route(start_lat, start_lon, end_lat, end_lon)
+    route['destination'] = destination
+    return jsonify(route)
+
+
+@app.route('/api/geocode', methods=['GET'])
+@rate_limit(20, 60)
+def api_geocode():
+    """Free-text address -> Pakistan coordinates (Nominatim, 24 h server cache).
+
+    Returns [] when the service is unreachable so the registration form keeps
+    working with a manually typed address.
+    """
+    query = (request.args.get('q') or '').strip()
+    if len(query) < 3:
+        return jsonify({'results': [], 'error': 'Query must be at least 3 characters'}), 400
+    return jsonify({'results': geocode(query, limit=5)})
 
 
 # ---------------------------------------------------------

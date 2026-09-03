@@ -432,120 +432,135 @@ def _first_name(full_name):
     return full_name.split()[0]
 
 
+def _address(name):
+    """'Ayesha, ' when we know the first name, '' when we don't."""
+    return f"{name}, " if name else ""
+
+
 def _cost(n):
     return f"{int(round(n / 10) * 10):,}"
 
 
-# --- Rule-based responses (natural Pakistani Roman-Urdu — no API key needed) ---
+# --- Rule-based responses -------------------------------------------------
+# These run whenever there is no DASHSCOPE_API_KEY, so they are the voice most
+# judges will actually hear. They follow the SAME style contract as the Qwen
+# SYSTEM_PROMPT above:
+#   • simple Roman Urdu for the sentence flow
+#   • everyday English words stay in English (petrol, price, school, cost,
+#     saving, walk, group, car, lift, share, online, hybrid, app, register)
+#   • no formal Urdu vocabulary, no Urdu script
+#   • short, conversational sentences — one or two per reply (the greeting
+#     branch adds a salutation on top, so never more than three)
+#   • money as "343 Rs", distance as "0.6 km" (digits, never words)
 
 def _rule_petrol_price(petrol, db_ctx):
     price = petrol['price']
     direction = petrol['direction']
-    diff = petrol['difference']
-    cluster_type = db_ctx.get('cluster_type', '')
+    diff = abs(petrol['difference'])
+    walking = 'Walking' in db_ctx.get('cluster_type', '')
 
     if direction == 'increase':
-        if 'Walking' in cluster_type:
-            return f"Petrol abhi {price} rupay litre hai, {abs(diff)} rupay barh gaya. But tension mat lo, aap ke bache walk kar ke school jaate hain. Petrol ka kharcha zero!"
-        return f"Petrol {abs(diff)} rupay barh ke {price} rupay litre ho gaya. Neighbours ke saath gaari share kar lo, cost aadhi ho jayegi."
+        if walking:
+            return f"Petrol ab {price} Rs/L hai, {diff} Rs barh gaya. But tension mat lo — aap ke bache walk kar ke school jaate hain, cost zero!"
+        return f"Petrol {diff} Rs barh ke {price} Rs/L ho gaya. Neighbours ke saath car share kar lo, cost aadhi ho jayegi."
     if direction == 'decrease':
-        return f"Achi khabar! Petrol {abs(diff)} rupay kam ho gaya. Ab sirf {price} rupay litre hai."
-    if 'Walking' in cluster_type:
-        return f"Petrol {price} rupay litre hai. But aap ke bache walk kar ke jaate hain, so petrol ka kharcha zero!"
+        return f"Good news! Petrol {diff} Rs kam ho gaya — ab {price} Rs/L hai."
+    if walking:
+        return f"Petrol {price} Rs/L hai. Aap ke bache walk kar ke school jaate hain, so petrol cost zero!"
     monthly = _cost(calculate_fuel_cost(db_ctx.get('cluster_distance', 2.5) * 2, petrol['price']))
-    return f"Petrol {price} rupay litre hai. Akele gaari chalaoge toh mahine ka {monthly} rupay lagenge."
+    return f"Petrol {price} Rs/L hai. Akele car chalaoge toh mahine ka {monthly} Rs lagenge."
 
 
 def _rule_carpool(petrol, user_ctx, db_ctx):
     nearby_count = db_ctx.get('nearby_count', 0)
     cluster_type = db_ctx.get('cluster_type', '')
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     distance = db_ctx.get('cluster_distance', 2.5)
 
     if 'Walking' in cluster_type:
-        return f"{name}, school sirf {distance} km door hai. Gaari ki zaroorat hi nahi! {nearby_count} families walk karti hain aap ke saath. Cost zero!"
+        return f"{name}school sirf {distance} km door hai — car ki zaroorat hi nahi! {nearby_count} families aap ke saath walk karti hain, cost zero!"
     if nearby_count == 0:
-        return f"{name}, aap ke area mein abhi koi family registered nahi. Neighbours ko bolo app par aayein, phir mil kar lift share kar sakte ho."
+        return f"{name}aap ke area mein abhi koi family register nahi hui. Neighbours ko app par bulao, phir mil kar lift share kar sakte ho."
     group_size = max(nearby_count + 1, 2)
     savings = calculate_carpool_saving(group_size, distance * 2, petrol['price'])
     monthly = _cost(savings['monthly_saving'])
-    return f"{name}, {nearby_count} neighbours isi school jaate hain. Mil kar gaari share karo, mahine ke {monthly} rupay bachenge!"
+    return f"{name}{nearby_count} neighbours isi school jaate hain. Mil kar car share karo — mahine ke {monthly} Rs bachenge!"
 
 
 def _rule_walking(petrol, user_ctx, db_ctx):
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     nearby_count = db_ctx.get('nearby_count', 0)
     cluster_type = db_ctx.get('cluster_type', '')
     distance = db_ctx.get('cluster_distance', 2.5)
 
     if 'Walking' in cluster_type:
-        return f"{name}, aap ka walking group ban gaya hai! {nearby_count} families saath chalti hain. School {distance} km door hai. Petrol ka kharcha zero!"
+        return f"{name}aap ka walking group ready hai! {nearby_count} families saath chalti hain aur school {distance} km door hai — petrol cost zero!"
     if distance <= 1.0:
-        return f"{name}, school sirf {distance} km door hai. Bache aaram se walk kar ke ja sakte hain. Parents baari baari saath chalein."
-    return f"{name}, school walk ke liye thoda door hai. Neighbours ke saath gaari share kar lo."
+        return f"{name}school sirf {distance} km door hai. Bache aaram se walk kar sakte hain — parents baari baari saath chalein."
+    return f"{name}school walk ke liye thora door hai ({distance} km). Neighbours ke saath car share kar lo."
 
 
 def _rule_savings(petrol, user_ctx, db_ctx):
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     nearby_count = db_ctx.get('nearby_count', 0)
     cluster_type = db_ctx.get('cluster_type', '')
     distance = db_ctx.get('cluster_distance', 2.5)
     solo = _cost(calculate_fuel_cost(distance * 2, petrol['price']))
 
     if 'Walking' in cluster_type:
-        return f"{name}, aap ke bache walk kar ke school jaate hain. Petrol cost zero! Akele gaari le jao toh {solo} rupay mahina lagta."
+        return f"{name}aap ke bache walk kar ke school jaate hain — petrol cost zero! Akele car le jao toh {solo} Rs mahina lagta."
     if nearby_count == 0:
-        return f"{name}, akele gaari ka kharcha {solo} rupay mahina hai. Neighbours ko app par lao aur mil kar aadha bacha lo."
+        return f"{name}akele car ka cost {solo} Rs mahina hai. Neighbours ko app par lao, phir mil kar aadha bacha lo."
     group_size = max(nearby_count + 1, 2)
     savings = calculate_carpool_saving(group_size, distance * 2, petrol['price'])
     per = _cost(savings['saving_per_student'])
-    return f"{name}, akele gaari ka kharcha {solo} rupay hai. Neighbours ke saath share karo aur {per} rupay mahina bachao!"
+    return f"{name}akele car ka cost {solo} Rs hai. Neighbours ke saath share karo aur {per} Rs mahina bachao!"
 
 
 def _rule_nearby(user_ctx, db_ctx):
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     neighborhood = user_ctx.get('neighborhood', '')
     nearby_count = db_ctx.get('nearby_count', 0)
     nearby_names = db_ctx.get('nearby_names', [])
 
     if not neighborhood:
-        return "Pehle apna area register karo. Phir hum qareeb ki families dhoond lenge."
+        return "Pehle apna area register karo. Phir main qareeb ki families dhoond loonga."
     if nearby_count == 0:
-        return f"{name}, {neighborhood} mein abhi koi family registered nahi. Neighbours ko bolo app join karein!"
+        return f"{name}{neighborhood} mein abhi koi family register nahi hui. Neighbours ko bolo app join karein!"
     names_text = ', '.join(_first_name(n) for n in nearby_names[:3])
     if len(nearby_names) > 3:
         names_text += f' aur {len(nearby_names) - 3} aur'
-    return f"{name}, {neighborhood} mein {nearby_count} families hain: {names_text}. Sab isi school jaate hain."
+    return f"{name}{neighborhood} mein {nearby_count} families hain: {names_text}. Sab isi school jaate hain."
 
 
 def _rule_school(petrol, user_ctx, db_ctx):
     school = user_ctx.get('school_name', 'school')
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     distance = db_ctx.get('cluster_distance', 2.5)
     cluster_type = db_ctx.get('cluster_type', '')
     monthly = _cost(calculate_fuel_cost(distance * 2, petrol['price']))
 
     if 'Walking' in cluster_type:
-        return f"{name}, {school} {distance} km door hai. Bache walk kar ke ja sakte hain, bilkul free!"
-    return f"{name}, {school} {distance} km door hai. Akele gaari le jao toh {monthly} rupay mahina. Mil kar jao toh aadha bachega."
+        return f"{name}{school} sirf {distance} km door hai. Bache walk kar ke ja sakte hain — bilkul free!"
+    return f"{name}{school} {distance} km door hai. Akele car le jao toh {monthly} Rs mahina, mil kar jao toh aadha bachega."
 
 
 def _rule_hybrid(petrol, db_ctx):
     price = petrol['price']
     if price > 340:
-        return f"Petrol {price} rupay hai, bohot mehnga hai! Hybrid schedule try karo: 3 din school, 2 din online. Transport cost 40% kam ho jayega."
-    return "Abhi petrol theek hai. Jab mehnga ho jaye toh principal hybrid schedule laga sakta hai: 3 din school, 2 din online. 40% bachat hogi."
+        return f"Petrol {price} Rs/L hai — bohat mehnga! Hybrid schedule try karo: 3 din school, 2 din online. Transport cost 40% kam ho jayega."
+    return "Abhi petrol theek hai. Jab mehnga ho jaye toh principal hybrid schedule laga sakta hai: 3 din school, 2 din online — 40% saving hogi."
 
 
 def _rule_help():
     return (
-        "Main aap ki help kar sakta hoon:\n\n"
-        "• Petrol ka rate kya hai\n"
-        "• Mil kar kaise jayen\n"
-        "• Walking group\n"
-        "• Kitna bachega\n"
+        "Main aap ki madad kar sakta hoon. Yeh pooch sakte hain:\n\n"
+        "• Petrol ka price kya hai\n"
+        "• Car share kaise karein\n"
+        "• Walking group kaise banayein\n"
+        "• Kitna saving hogi\n"
         "• Qareeb ki families\n"
-        "• Online class\n\n"
+        "• Hybrid / online class\n\n"
         "Mic button dabao ya type karo."
     )
 
@@ -555,14 +570,19 @@ def _rule_greet(user_ctx, db_ctx):
     nearby_count = db_ctx.get('nearby_count', 0)
     greet = f"Walaikum Assalam {name}!" if name else "Walaikum Assalam!"
     if nearby_count > 0:
-        return f"{greet} Aap ke area mein {nearby_count} families hain. Petrol, bachat ya school transport — kuch bhi pooch lo!"
-    return f"{greet} Petrol rate, school transport ya paise bachane ke baare mein kuch bhi poocho."
+        return f"{greet} Aap ke area mein {nearby_count} families hain. Petrol price, saving ya school transport — kuch bhi pooch lo!"
+    return f"{greet} Petrol price, school transport ya saving — kuch bhi pooch lo."
 
 
 def _rule_general(petrol, user_ctx, db_ctx):
-    name = _first_name(user_ctx.get('name', ''))
-    monthly = _cost(calculate_fuel_cost(db_ctx.get('cluster_distance', 2.5) * 2, petrol['price']))
-    return f"{name}, petrol {petrol['price']} rupay litre hai. Akele gaari chalaoge toh mahine ka {monthly} rupay lagenge. Mil kar chalo toh aadha bachega. Help ke liye 'help' likho."
+    """Catch-all: opens with the plain phrasing the style guide asks for."""
+    name = _address(_first_name(user_ctx.get('name', '')))
+    distance = db_ctx.get('cluster_distance', 2.5)
+    monthly = _cost(calculate_fuel_cost(distance * 2, petrol['price']))
+    return (
+        f"{name}aap ke question ka answer yeh hai: petrol {petrol['price']} Rs/L hai. "
+        f"Akele car ka cost {monthly} Rs mahina, mil kar chalo toh aadha bachega."
+    )
 
 
 def _rule_petrol_and_transport(query, petrol, user_ctx, db_ctx):
@@ -571,7 +591,7 @@ def _rule_petrol_and_transport(query, petrol, user_ctx, db_ctx):
     Example query: 'Petrol 280 ho gaya hai, bache ko school kaise bheju?'
     User wants: petrol price + practical advice for getting kids to school.
     """
-    name = _first_name(user_ctx.get('name', ''))
+    name = _address(_first_name(user_ctx.get('name', '')))
     price = petrol['price']
     school = user_ctx.get('school_name', 'school')
     distance = db_ctx.get('cluster_distance', 2.5)
@@ -580,24 +600,21 @@ def _rule_petrol_and_transport(query, petrol, user_ctx, db_ctx):
 
     if 'Walking' in cluster_type:
         return (
-            f"{name}, petrol {price} rupay litre hai. "
-            f"But tension mat lo — aap ke bache {school} walk kar ke ja sakte hain, sirf {distance} km door hai. "
-            f"Petrol ka kharcha zero! {nearby_count} families aap ke saath walk karti hain."
+            f"{name}petrol {price} Rs/L hai, but tension mat lo. "
+            f"{school} sirf {distance} km door hai — bache walk kar ke ja sakte hain, petrol cost zero!"
         )
 
     monthly = _cost(calculate_fuel_cost(distance * 2, price))
 
     if nearby_count > 0:
         return (
-            f"{name}, petrol {price} rupay litre hai. "
-            f"{school} {distance} km door hai — akele gaari le jao toh {monthly} rupay mahina lagenge. "
-            f"But {nearby_count} neighbours isi school jaate hain. Mil kar gaari share karo, cost aadhi ho jayegi!"
+            f"{name}petrol {price} Rs/L hai aur {school} {distance} km door hai. "
+            f"Akele car le jao toh {monthly} Rs mahina — but {nearby_count} neighbours isi school jaate hain, share kar lo aur cost aadhi kar lo!"
         )
 
     return (
-        f"{name}, petrol {price} rupay litre hai. "
-        f"{school} {distance} km door hai — akele gaari ka kharcha {monthly} rupay mahina. "
-        f"Neighbours ko app par invite karo, phir mil kar gaari share kar sakte ho."
+        f"{name}petrol {price} Rs/L hai aur {school} {distance} km door hai. "
+        f"Akele car ka cost {monthly} Rs mahina — neighbours ko app par invite karo, phir share kar sakte ho."
     )
 
 

@@ -10,6 +10,8 @@ Flask app is imported:
   • RATE_LIMIT_DISABLED → on by default so tests aren't throttled
                      (the rate-limit test re-enables it via monkeypatch)
   • SSE_CYCLE_SECONDS = 0 → the location stream closes instantly in tests
+  • SCHOOL_GEOCODING = 0  → school lookups use the offline registry only, so a
+                     missing Nominatim reply can never change a test's numbers
 
 The app auto-seeds demo users on first run, so every test session starts
 with the standard demo families (Ayesha, Hassan, Sana, ...).
@@ -32,6 +34,7 @@ os.environ['DATABASE_URL'] = f'sqlite:///{_DB_PATH}'
 os.environ['FLASK_DEBUG'] = 'false'
 os.environ['RATE_LIMIT_DISABLED'] = '1'
 os.environ['SSE_CYCLE_SECONDS'] = '0'
+os.environ['SCHOOL_GEOCODING'] = '0'
 
 for _var in (
     'DASHSCOPE_API_KEY',

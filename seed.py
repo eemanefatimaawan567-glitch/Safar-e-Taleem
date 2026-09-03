@@ -16,36 +16,10 @@ from werkzeug.security import generate_password_hash
 # ─────────────────────────────────────────────
 # SCHOOL COORDINATES (fictional schools in each area)
 # ─────────────────────────────────────────────
-SCHOOLS = {
-    "Bahria Town Phase 8": {
-        "name": "Beaconhouse Bahria Town",
-        "lat": 33.5400, "lon": 73.1600
-    },
-    "G-11 Islamabad": {
-        "name": "City School G-11",
-        "lat": 33.6840, "lon": 72.9800
-    },
-    "F-8 Islamabad": {
-        "name": "Roots Millennium F-8",
-        "lat": 33.7140, "lon": 73.0450
-    },
-    "Satellite Town Rwp": {
-        "name": "Allied School Satellite Town",
-        "lat": 33.6300, "lon": 73.0500
-    },
-    "DHA Phase 2": {
-        "name": "LGS DHA Phase 2",
-        "lat": 33.6150, "lon": 73.0950
-    },
-    "Gulberg Lahore": {
-        "name": "Beaconhouse Gulberg",
-        "lat": 31.5200, "lon": 74.3500
-    },
-    "Clifton Karachi": {
-        "name": "Convent of Jesus & Mary",
-        "lat": 24.8100, "lon": 67.0350
-    },
-}
+# The canonical registry lives in modules/schools.py so the exact same
+# coordinates drive both the demo seed and the runtime home -> school distance
+# maths. Importing it here keeps the two from drifting apart.
+from modules.schools import SCHOOLS  # noqa: E402
 
 
 # ─────────────────────────────────────────────

@@ -45,35 +45,146 @@
     let usingPolling = false;
 
     // ---------------------------------------------------------
-    // HARDCODED MOCK WALKING ROUTE — Bahria Town Phase 4
-    // Realistic GPS waypoints from home → school along streets.
-    // Judges see a marker that actually moves along a road,
-    // not random jitter.  Each ping advances one step.
+    // WALKING ROUTE HOME → SCHOOL
+    // Loaded from /api/route, which asks the OSRM foot profile for the real
+    // path, so the map draws actual streets and the simulated walk follows
+    // them. Degrades to a straight home → school line, and only then to this
+    // static route, so the panel is never blank during a demo.
     // ---------------------------------------------------------
-    const MOCK_ROUTE = [
-        { lat: 33.6844, lon: 73.0479 },  // Home — Bahria Town Phase 4
-        { lat: 33.6849, lon: 73.0476 },  // Turn onto Main Boulevard
-        { lat: 33.6855, lon: 73.0472 },  // Past Civic Center
-        { lat: 33.6862, lon: 73.0468 },  // Cross Jinnah Avenue
-        { lat: 33.6870, lon: 73.0465 },  // Walking along Park Road
-        { lat: 33.6878, lon: 73.0463 },  // Near Community Park
-        { lat: 33.6885, lon: 73.0460 },  // Approaching school gate
-        { lat: 33.6890, lon: 73.0458 },  // School parking area
-        { lat: 33.6895, lon: 73.0456 },  // Beaconhouse Bahria Town — ARRIVED
+    const FALLBACK_ROUTE = [
+        [33.6844, 73.0479],  // Home — Bahria Town Phase 4
+        [33.6849, 73.0476],  // Turn onto Main Boulevard
+        [33.6855, 73.0472],  // Past Civic Center
+        [33.6862, 73.0468],  // Cross Jinnah Avenue
+        [33.6870, 73.0465],  // Walking along Park Road
+        [33.6878, 73.0463],  // Near Community Park
+        [33.6885, 73.0460],  // Approaching school gate
+        [33.6890, 73.0458],  // School parking area
+        [33.6895, 73.0456],  // Beaconhouse Bahria Town — ARRIVED
     ];
+
+    // The simulated commute reaches school after this many pings (~90 s),
+    // however many waypoints the real route turned out to have.
+    const SIM_STEPS = 9;
+
+    let routeWaypoints = [];   // [[lat, lon], ...] home → school
+    let routeMeta = null;      // {distance_km, duration_min, source}
+    let routeLine = null;
+    let schoolMarker = null;
+
+    // Server-rendered config lives in a <script type="application/json"> block
+    // on parent.html (safer than interpolating Jinja into JS). window.
+    // LIVE_LOCATION_USER is still honoured for any page that sets it directly.
+    let liveUserConfig;
+    function liveUser() {
+        if (liveUserConfig !== undefined) return liveUserConfig;
+        liveUserConfig = window.LIVE_LOCATION_USER || {};
+        const el = document.getElementById('live-location-config');
+        if (el) {
+            try {
+                liveUserConfig = JSON.parse(el.textContent) || {};
+            } catch (_) {
+                /* malformed config — keep the defaults */
+            }
+        }
+        return liveUserConfig;
+    }
+
+    function homeCoords() {
+        const user = liveUser();
+        if (user.latitude && user.longitude) return [user.latitude, user.longitude];
+        return FALLBACK_ROUTE[0];
+    }
+
+    function schoolCoords() {
+        const school = liveUser().school;
+        if (school && school.latitude && school.longitude) return [school.latitude, school.longitude];
+        return null;
+    }
 
     function initMap() {
         const mapEl = document.getElementById('location-map');
         if (!mapEl || typeof L === 'undefined') return;
 
-        const startLat = (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.latitude) || 33.6844;
-        const startLon = (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.longitude) || 73.0479;
-
-        map = L.map('location-map').setView([startLat, startLon], 14);
+        const home = homeCoords();
+        map = L.map('location-map').setView(home, 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
         }).addTo(map);
+    }
+
+    // ---------------------------------------------------------
+    // ROUTE DRAWING — school pin + the actual footpath to it
+    // ---------------------------------------------------------
+    function drawSchoolMarker() {
+        const dest = schoolCoords();
+        if (!map || !dest || schoolMarker) return;
+        const name = (liveUser().school || {}).name || 'School';
+        const icon = L.divIcon({
+            className: '',
+            html: '<div style="width:28px;height:28px;border-radius:9px;background:#0f766e;border:3px solid #fff;'
+                + 'box-shadow:0 0 0 2px #0f766e;display:flex;align-items:center;justify-content:center;'
+                + 'color:#fff;font-size:12px;"><i class="fa-solid fa-school"></i></div>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+        });
+        schoolMarker = L.marker(dest, { icon, zIndexOffset: 400 }).addTo(map).bindPopup(name);
+    }
+
+    function renderRouteInfo() {
+        const el = document.getElementById('route-info');
+        if (!el) return;
+        const dest = schoolCoords();
+        if (!dest) { el.style.display = 'none'; return; }
+
+        const name = (liveUser().school || {}).name || 'School';
+        const km = routeMeta ? routeMeta.distance_km : null;
+        const mins = routeMeta ? routeMeta.duration_min : null;
+        const routed = routeMeta && routeMeta.source === 'osrm';
+
+        el.style.display = 'flex';
+        el.innerHTML = '<i class="fa-solid fa-route" style="color:#0ea5e9;"></i><span>'
+            + '<strong>' + name + '</strong>'
+            + (km != null ? ' — ' + km + ' km' : '')
+            + (mins != null ? ' • ' + mins + ' min walk' : '')
+            + ' <em style="opacity:.65;font-style:normal;">'
+            + (routed ? '(real walking route)' : '(estimated path)') + '</em></span>';
+    }
+
+    async function loadRoute() {
+        if (!map) return;
+
+        let waypoints = null;
+        try {
+            const res = await fetchWithRetry('/api/route?to=school', {}, 1);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.waypoints) && data.waypoints.length >= 2) {
+                    waypoints = data.waypoints;
+                    routeMeta = {
+                        distance_km: data.distance_km,
+                        duration_min: data.duration_min,
+                        source: data.source,
+                    };
+                }
+            }
+        } catch (_) { /* offline — the fallbacks below still draw a path */ }
+
+        if (!waypoints) {
+            const dest = schoolCoords();
+            waypoints = dest ? [homeCoords(), dest] : FALLBACK_ROUTE;
+        }
+
+        routeWaypoints = waypoints;
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline(routeWaypoints, {
+            color: '#0ea5e9', weight: 5, opacity: 0.85, dashArray: '8 6', lineJoin: 'round',
+        }).addTo(map);
+
+        drawSchoolMarker();
+        map.fitBounds(routeLine.getBounds(), { padding: [28, 28] });
+        renderRouteInfo();
     }
 
     function colorFor(entry) {
@@ -254,24 +365,16 @@
     }
 
     function simulatePosition() {
-        // Use hardcoded walking route waypoints instead of random jitter
-        // so judges see a marker that actually moves along a real road.
-        const startLat = (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.latitude) || MOCK_ROUTE[0].lat;
-        const startLon = (window.LIVE_LOCATION_USER && window.LIVE_LOCATION_USER.longitude) || MOCK_ROUTE[0].lon;
+        // Walk along the real route waypoints so judges see a marker following
+        // the road to school. The path is re-sampled to SIM_STEPS stops, so an
+        // OSRM route with 400 points still finishes the demo in ~90 seconds.
+        const path = routeWaypoints.length >= 2 ? routeWaypoints : FALLBACK_ROUTE;
+        const idx = Math.min(routeStep, SIM_STEPS - 1);
+        const at = Math.round(idx * (path.length - 1) / (SIM_STEPS - 1));
+        routeStep++;
 
-        if (routeStep < MOCK_ROUTE.length) {
-            simulatedPos = {
-                latitude: MOCK_ROUTE[routeStep].lat,
-                longitude: MOCK_ROUTE[routeStep].lon,
-            };
-            routeStep++;  // advance one step per ping (every 10s)
-        } else {
-            // Reached school — stay at the last waypoint
-            simulatedPos = {
-                latitude: MOCK_ROUTE[MOCK_ROUTE.length - 1].lat,
-                longitude: MOCK_ROUTE[MOCK_ROUTE.length - 1].lon,
-            };
-        }
+        const point = path[at];
+        simulatedPos = { latitude: point[0], longitude: point[1] };
         return simulatedPos;
     }
 
@@ -377,7 +480,9 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (!document.getElementById('location-map')) return; // page doesn't use this feature
         initMap();
-        // Real-time first (SSE) — automatically falls back to polling
+        // Draw the home → school route (real OSRM path when reachable), then
+        // start real-time updates — SSE first, polling as the automatic fallback.
+        loadRoute();
         startLiveUpdates();
     });
 })();

@@ -13,9 +13,19 @@ license: mit
 
 > **Because the journey should never become the cost of an education.**
 
+## 🌐 Live Demo
+
+🚀 **Try Safar-e-Taleem:** https://eemanefatimaawan.pythonanywhere.com/
+
+**Hackathon demo access:**
+- 👨‍👩‍👧 **Parent Demo:** https://eemanefatimaawan.pythonanywhere.com/demo-login/parent
+- 🏫 **Principal Demo:** https://eemanefatimaawan.pythonanywhere.com/demo-login/principal
+
+No installation or local setup is required to explore the deployed prototype.
+
 Safar-e-Taleem (*Journey of Education*) is an AI-powered school mobility, student-safety, and learning-continuity platform designed for Pakistani families affected by rising transportation costs.
 
-Built for the **Alibaba Cloud Hackathon**, the prototype brings together safe commute coordination, live student protection, fuel-aware school planning, low-tech learning delivery, community device sharing, and a Roman-Urdu/English AI assistant powered by **Alibaba Cloud DashScope (Qwen)**.
+Built for the **Alibaba Cloud Hackathon**, the prototype brings together safe commute coordination, live student protection, fuel-aware school planning, low-tech learning delivery, community device sharing, and a Roman-Urdu/English AI assistant designed to integrate with **Alibaba Cloud DashScope (Qwen)**.
 
 ---
 
@@ -65,9 +75,9 @@ When some students have access to a smartphone or device and others do not, Safa
 
 ### 🎙️ 6. Ask Ammi/Abba — Roman-Urdu AI Assistant
 
-To make the platform easier for parents to use, Safar-e-Taleem includes **Ask Ammi/Abba**, a voice-enabled assistant that communicates in natural Roman Urdu and English.
+To make the platform easier for parents to use, Safar-e-Taleem includes **Ask Ammi/Abba**, a voice-enabled assistant for natural Roman Urdu and English interaction.
 
-The assistant uses **Alibaba Cloud DashScope (Qwen)** when an API key is configured and falls back to a rule-based assistant when the AI service is unavailable.
+The project supports **Alibaba Cloud DashScope (Qwen)** when the required API configuration is available and includes a rule-based fallback when the external AI service is unavailable. The availability of the external Qwen service can depend on the deployment environment.
 
 ---
 
@@ -77,10 +87,10 @@ The assistant uses **Alibaba Cloud DashScope (Qwen)** when an API key is configu
 |---|---|
 | **AI Walking Groups** | DBSCAN clustering groups nearby families attending the same school into safe commute groups. |
 | **Fuel-aware routing** | Recommends walking/shared/carpool options based on distance and fuel conditions and estimates savings. |
-| **Live Petrol Monitor** | Tracks Pakistani fuel-price information and visualizes trends for the principal dashboard. |
+| **Live Petrol Monitor** | Tracks Pakistani fuel-price information and visualizes conditions for the principal dashboard. |
 | **Hybrid Shift Predictor** | Helps principals explore a 3-day physical / 2-day remote response to high commuting costs. |
 | **Live Student Protection** | Live location sharing, principal safety map, journey status and SOS alerts. |
-| **Ask Ammi/Abba AI** | Alibaba Cloud Qwen-powered Roman-Urdu/English chat and voice assistance with fallback mode. |
+| **Ask Ammi/Abba AI** | Roman-Urdu/English chat and voice interface with optional Alibaba Cloud Qwen integration and fallback mode. |
 | **Mohallah Study Pods** | Connects nearby students to improve access to shared devices and learning resources. |
 | **WhatsApp / SMS / IVR Delivery** | Supports low-data curriculum and alert delivery, with simulation mode for demos. |
 | **Offline-first PWA** | Installable web app with caching support for unreliable connectivity. |
@@ -118,15 +128,15 @@ Families can enter a typed address that is resolved to coordinates when GPS is u
 
 ## 🛠 Technology Stack
 
-- **Backend:** Python 3.12, Flask, Flask-SQLAlchemy, SQLite
-- **AI:** Alibaba Cloud DashScope (Qwen) via the OpenAI-compatible SDK
+- **Backend:** Python, Flask, Flask-SQLAlchemy, SQLite
+- **AI:** Alibaba Cloud DashScope (Qwen) integration via the OpenAI-compatible SDK
 - **Machine Learning:** scikit-learn DBSCAN, NumPy, pandas
 - **Maps:** Leaflet + OpenStreetMap
 - **Real-time updates:** Server-Sent Events (SSE) + polling fallback
 - **Frontend:** HTML/Jinja2, vanilla JavaScript, CSS, Chart.js, Web Speech API
 - **Low-tech delivery:** WhatsApp/SMS provider integrations + simulation mode
 - **Offline support:** Progressive Web App (PWA) + service worker
-- **Deployment:** Docker / Hugging Face Spaces or gunicorn / Render / Railway
+- **Live deployment:** PythonAnywhere
 
 ---
 
@@ -135,7 +145,7 @@ Families can enter a typed address that is resolved to coordinates when GPS is u
 Safar-e-Taleem uses technology where it solves a specific problem rather than adding AI only as a label:
 
 - **DBSCAN** performs geographic clustering of nearby same-school families without requiring a predefined number of groups.
-- **Alibaba Cloud Qwen** powers accessible Roman-Urdu/English assistance for parents.
+- **Alibaba Cloud Qwen integration** supports accessible Roman-Urdu/English assistance for parents when the external service is available.
 - **Fuel-aware decision logic** supports the principal's hybrid-shift planning workflow.
 - **Location and routing services** connect commute recommendations with real map-based journeys.
 
@@ -172,7 +182,7 @@ No password is needed for the dedicated hackathon demo routes:
 - **Parent:** `/demo-login/parent`
 - **Principal:** `/demo-login/principal`
 
-For the real Qwen assistant, add your own `DASHSCOPE_API_KEY` to the local `.env` file. **Never commit real credentials to GitHub.**
+For Qwen integration, add your own `DASHSCOPE_API_KEY` to the local `.env` file. **Never commit real credentials to GitHub.**
 
 ---
 
@@ -188,15 +198,15 @@ The test suite covers core commute, geographic, notification, AI, petrol, curric
 
 ## ☁️ Deployment
 
-The repository includes configuration for containerized deployment.
+### Live Hackathon Deployment — PythonAnywhere
 
-### Hugging Face Spaces
+The current public prototype is deployed at:
 
-The project includes a `Dockerfile` and the required Space metadata in this README. Add required credentials through the hosting platform's secret/environment-variable settings rather than committing them to the repository.
+**https://eemanefatimaawan.pythonanywhere.com/**
 
-### Render / Railway
+Judges can use the Parent and Principal demo buttons on the landing page without installing the project locally.
 
-The application can also run with gunicorn using the included deployment configuration. Production credentials should always be supplied as environment variables.
+The repository also contains a `Dockerfile` and gunicorn-compatible configuration for other deployment environments.
 
 ---
 

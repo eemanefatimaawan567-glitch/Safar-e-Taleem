@@ -271,6 +271,27 @@
 
         </div>
 
+        <!-- NON-EMERGENCY HELP REQUEST -->
+        <div class="panel-card ui-card" id="coordinator-help" style="margin-bottom:20px;border-left:6px solid #0f766e;background:linear-gradient(135deg,#f0fdfa 0%,#ffffff 100%);">
+            <div class="panel-header">
+                <p class="panel-title" style="color:#115e59;"><i class="fa-solid fa-hand-holding-heart"></i> Need Help?</p>
+                <span class="badge" style="background:#ccfbf1;color:#115e59;">Non-emergency</span>
+            </div>
+            <p style="font-size:.825rem;color:#475569;margin-bottom:12px;line-height:1.5;">
+                Ask your group coordinator and school principal for help with today's commute.
+                For an immediate safety emergency during live sharing, use the red SOS button below.
+            </p>
+            <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;">
+                <input type="text" id="help-request-msg" maxlength="200"
+                    placeholder="e.g. I need help arranging today's school ride"
+                    style="flex:1;min-width:220px;padding:10px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:.875rem;outline:none;">
+                <button class="btn btn-primary" id="help-request-btn" onclick="sendHelpRequest()" style="white-space:nowrap;background:#0f766e;">
+                    <i class="fa-solid fa-hand"></i> Ask for Help
+                </button>
+            </div>
+            <div id="help-request-status" style="margin-top:10px;font-size:.8rem;color:var(--text-muted);"></div>
+        </div>
+
         {% if is_coordinator and nearby_parents %}
         <!-- COORDINATOR ACTIONS — only visible to group coordinator -->
         <div class="panel-card" style="margin-bottom: 20px; border-left: 6px solid #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);">
@@ -481,16 +502,17 @@ async function loadPodAlerts() {
 
         listEl.innerHTML = messages.map((m) => {
             const isSos = m.level === 'sos-alert';
-            const icon = isSos ? 'fa-triangle-exclamation' : 'fa-bullhorn';
-            const bg = isSos ? '#fef2f2' : (m.status === 'failed' ? '#fff7ed' : '#f8fafc');
-            const border = isSos ? '#fecaca' : (m.status === 'failed' ? '#fed7aa' : 'var(--border)');
-            const color = isSos ? '#991b1b' : 'inherit';
+            const isHelp = m.level === 'help-request';
+            const icon = isSos ? 'fa-triangle-exclamation' : (isHelp ? 'fa-hand-holding-heart' : 'fa-bullhorn');
+            const bg = isSos ? '#fef2f2' : (isHelp ? '#f0fdfa' : (m.status === 'failed' ? '#fff7ed' : '#f8fafc'));
+            const border = isSos ? '#fecaca' : (isHelp ? '#99f6e4' : (m.status === 'failed' ? '#fed7aa' : 'var(--border)'));
+            const color = isSos ? '#991b1b' : (isHelp ? '#115e59' : 'inherit');
             const failedNote = m.status === 'failed'
                 ? ' <i class="fa-solid fa-circle-exclamation" title="Delivery failed"></i>'
                 : '';
             return `<div class="group-row" style="background: ${bg}; border: 1px solid ${border}; border-radius: 10px; margin-bottom: 8px;">
                 <div class="group-person">
-                    <i class="fa-solid ${icon}" style="color: ${isSos ? '#ef4444' : '#f59e0b'};"></i>
+                    <i class="fa-solid ${icon}" style="color: ${isSos ? '#ef4444' : (isHelp ? '#0f766e' : '#f59e0b')};"></i>
                     <div>
                         <div class="person-name" style="font-size: 0.85rem; color: ${color};">${m.preview}</div>
                         <div class="person-role">${m.channel} • ${m.sent_at}${failedNote}</div>
@@ -503,6 +525,38 @@ async function loadPodAlerts() {
     }
 }
 document.addEventListener('DOMContentLoaded', loadPodAlerts);
+
+// --- PARENT: Ask coordinator + principal for non-emergency help ---
+async function sendHelpRequest() {
+    const input = document.getElementById('help-request-msg');
+    const statusEl = document.getElementById('help-request-status');
+    const btn = document.getElementById('help-request-btn');
+    if (!statusEl || !btn) return;
+
+    const message = (input?.value || '').trim();
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    statusEl.textContent = '';
+
+    try {
+        const res = await fetch('/api/pod/help', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not send help request');
+
+        statusEl.innerHTML = '<span style="color:#0f766e;"><i class="fa-solid fa-check-circle"></i> ' + data.message + '</span>';
+        if (input) input.value = '';
+        loadPodAlerts();
+    } catch (err) {
+        statusEl.innerHTML = '<span style="color:#ef4444;">' + (err.message || 'Could not send help request') + '</span>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-hand"></i> Ask for Help';
+    }
+}
 
 // --- COORDINATOR: Send pod alert ---
 async function sendPodAlert() {

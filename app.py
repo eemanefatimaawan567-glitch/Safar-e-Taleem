@@ -155,21 +155,35 @@ with app.app_context():
         from seed import seed as _run_seed
         _run_seed()
 
+    # Repair only the two canonical demo identities; registered families stay untouched.
+    demo_ayesha = User.query.filter_by(email='ayesha@demo.com').first()
+    if demo_ayesha:
+        demo_ayesha.name = 'Ayesha Khan'
+        demo_ayesha.role = 'parent'
+
+    demo_principal = User.query.filter_by(email='principal@demo.com').first()
+    if demo_principal:
+        demo_principal.name = 'Dr. Zainab Qureshi'
+        demo_principal.role = 'principal'
+        demo_principal.children_count = 0
+
+    db.session.commit()
+
 
 def get_tracked_petrol_price():
     """
     Fetches live petrol price, compares with the last stored DB price,
     saves the new price if changed, and returns full data dict.
-    If the last record is a demo spike/reset, uses that instead of live data
+    If the last record is a demo spike, uses that instead of live data
     so the hackathon demo spike stays stable across polls.
     """
     # Get the most recent stored price
     last_record = PetrolPrice.query.order_by(PetrolPrice.checked_at.desc()).first()
 
-    # If last record is a demo spike or reset, use it instead of live scraping
+    # Only a demo spike temporarily overrides normal live/fallback tracking
     demo_mode = False
     live = {}
-    if last_record and last_record.source in ('demo-spike', 'demo-reset'):
+    if last_record and last_record.source == 'demo-spike':
         demo_mode = True
         current = last_record.price
         source = last_record.source
@@ -707,9 +721,15 @@ def demo_login(role):
         user = None
 
     if user:
+        expected_role = 'parent' if role == 'parent' else 'principal'
+        if user.role != expected_role:
+            logger.error('Demo account role mismatch for %s', user.email)
+            return redirect(url_for('login'))
+
+        session.clear()
         session['user_id'] = user.id
-        session['user_role'] = user.role
-        if user.role == 'principal':
+        session['user_role'] = expected_role
+        if expected_role == 'principal':
             return redirect(url_for('principal_dashboard'))
         return redirect(url_for('parent_dashboard'))
 
@@ -851,10 +871,25 @@ def principal_dashboard():
 
     decision_data = build_school_decision_data(petrol['price'])
 
+    # Build chart data from stored petrol-price history
+    history_records = PetrolPrice.query.order_by(
+        PetrolPrice.checked_at.asc()
+    ).limit(30).all()
+
+    petrol_chart_data = {
+        'labels': [
+            r.checked_at.strftime('%d %b') if r.checked_at else ''
+            for r in history_records
+        ],
+        'prices': [r.price for r in history_records],
+    }
+
     return render_template(
         'principal.html',
         user=user,
         petrol_price=petrol['price'],
+        petrol_data=petrol_chart_data,
+        petrol_prices=history_records,
         alert=petrol['alert'],
         percentage_change=petrol['percentage_change'],
         direction=petrol['direction'],
@@ -866,6 +901,9 @@ def principal_dashboard():
         walking_groups=walking_groups,
         carpool_groups=carpool_groups,
         solo_count=solo_count,
+        total_walking_groups=walking_groups,
+        total_carpool_groups=carpool_groups,
+        solo_families=solo_count,
         total_groups=len(clusters),
         study_pods=study_pods,
         unmatched_families=unmatched_families,
@@ -884,6 +922,28 @@ def principal_dashboard():
 def get_petrol_price():
     petrol = get_tracked_petrol_price()
     return jsonify(petrol)
+
+
+@app.route('/api/fuel-prices', methods=['GET'])
+def get_fuel_prices():
+    from modules.petrol_price import get_live_fuel_prices
+    fuel = get_live_fuel_prices()
+
+    def item(value, unit):
+        return {
+            'price': value,
+            'unit': unit
+        } if value is not None else {}
+
+    return jsonify({
+        'petrol': item(fuel.get('petrol'), 'L'),
+        'diesel': item(fuel.get('diesel'), 'L'),
+        'kerosene': item(fuel.get('kerosene'), 'L'),
+        'lpg': item(fuel.get('lpg'), 'kg'),
+        'effective_date': fuel.get('effective_date'),
+        'source': fuel.get('source', 'fallback'),
+        'checked_at': fuel.get('checked_at'),
+    })
 
 
 @app.route('/api/petrol-history', methods=['GET'])
@@ -1407,6 +1467,9 @@ def demo_scenario():
         share = LocationShare(user_id=parent.id)
         db.session.add(share)
 
+    petrol_price = None
+    message = None
+
     if action in ('normal', 'reset'):
         share.is_sos = False
         share.sos_triggered_at = None
@@ -1414,6 +1477,23 @@ def demo_scenario():
         if session.get('demo_scenario_parent_id') == parent.id:
             share.is_active = False
         session.pop('demo_scenario_parent_id', None)
+
+        # Remove simulator fuel records instead of writing a fake reset price.
+        PetrolPrice.query.filter(
+            PetrolPrice.source.in_(('demo-spike', 'demo-reset'))
+        ).delete(synchronize_session=False)
+        HybridSchedule.query.update({'is_active': False})
+        db.session.commit()
+
+        normal_petrol = get_tracked_petrol_price()
+        petrol_price = normal_petrol['price']
+        message = f'Normal demo state restored at Rs {petrol_price:.2f}/L.'
+
+    elif action == 'fuel_crisis':
+        petrol_price = 410.00
+        db.session.add(PetrolPrice(price=petrol_price, source='demo-spike'))
+        message = f'Fuel crisis simulated at Rs {petrol_price:.0f}/L.'
+
     elif action == 'student_sos':
         # Reuse the parent's stored home coordinates, with Islamabad fallback
         # only for demo data that has no geocoded location yet.
@@ -1425,15 +1505,21 @@ def demo_scenario():
         share.is_sos = True
         share.sos_triggered_at = utcnow()
         session['demo_scenario_parent_id'] = parent.id
+        message = f'Student SOS simulated for {parent.name}.'
 
     db.session.commit()
-    return jsonify({
+
+    response = {
         'ok': True,
         'action': action,
         'demo_parent': {'id': parent.id, 'name': parent.name},
         'simulated': True,
+        'message': message or 'Simulation updated.',
         'note': 'Demo Scenario Simulator — not a real emergency.'
-    })
+    }
+    if petrol_price is not None:
+        response['petrol_price'] = petrol_price
+    return jsonify(response)
 
 # ---------------------------------------------------------
 # GEO SERVICES — real walking route + address lookup
@@ -1546,6 +1632,73 @@ def location_stream():
     response.headers['Cache-Control'] = 'no-cache'
     response.headers['X-Accel-Buffering'] = 'no'  # disable proxy buffering
     return response
+
+
+
+@app.route('/api/pod/help', methods=['POST'])
+@login_required
+@rate_limit(10, 60)
+def request_pod_help():
+    """Parent asks for non-emergency help from the group coordinator and school principal.
+
+    This is intentionally separate from the commute SOS. It can be used even
+    when live location sharing is not active.
+    """
+    user = get_current_user()
+    if not user or user.role != 'parent':
+        return jsonify({'error': 'Only parents can request pod help'}), 403
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()[:200]
+    if not message:
+        message = 'I need help with today’s school commute.'
+
+    coordinator = get_pod_coordinator(user)
+    principals = User.query.filter_by(role='principal').all()
+
+    recipients = []
+    seen_ids = set()
+
+    # If another parent is the coordinator, notify them.
+    if coordinator and coordinator.id != user.id:
+        recipients.append(coordinator)
+        seen_ids.add(coordinator.id)
+
+    # Also notify school principals (Dr. Zainab in the demo).
+    for principal_user in principals:
+        if principal_user.id != user.id and principal_user.id not in seen_ids:
+            recipients.append(principal_user)
+            seen_ids.add(principal_user.id)
+
+    if not recipients:
+        return jsonify({'error': 'No coordinator or principal is available right now'}), 404
+
+    sent_to = []
+    content = f'Help request from {user.name}: {message}'
+
+    for person in recipients:
+        phone = recipient_phone(person)
+        result = send_notification('whatsapp', phone, content)
+        db.session.add(NotificationLog(
+            recipient_id=person.id,
+            recipient_name=person.name,
+            recipient_phone=phone,
+            channel='whatsapp',
+            content_preview=content[:200],
+            curriculum_level='help-request',
+            status=result.get('status', 'sent'),
+            message_id=result.get('message_id', ''),
+        ))
+        sent_to.append(person.name)
+
+    db.session.commit()
+    return jsonify({
+        'ok': True,
+        'sent': len(sent_to),
+        'recipients': sent_to,
+        'message': f'Help request sent to {", ".join(sent_to)}.',
+        'emergency': False,
+    })
 
 
 @app.route('/api/pod/notify', methods=['POST'])
@@ -1677,7 +1830,7 @@ def pod_messages():
 
     logs = NotificationLog.query.filter(
         NotificationLog.recipient_id == user.id,
-        NotificationLog.curriculum_level.in_(('pod-alert', 'sos-alert')),
+        NotificationLog.curriculum_level.in_(('pod-alert', 'sos-alert', 'help-request')),
     ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
 
     return jsonify({'messages': [
@@ -1685,6 +1838,30 @@ def pod_messages():
             'channel': log.channel,
             'preview': log.content_preview,
             'level': log.curriculum_level,
+            'status': log.status,
+            'sent_at': log.sent_at.strftime('%d %b, %I:%M %p') if log.sent_at else '',
+        }
+        for log in logs
+    ]})
+
+
+
+@app.route('/api/principal/help-requests', methods=['GET'])
+@login_required
+def principal_help_requests():
+    """Recent non-emergency family help requests addressed to this principal."""
+    user = get_current_user()
+    if not user or user.role != 'principal':
+        return jsonify({'error': 'Principal access required'}), 403
+
+    logs = NotificationLog.query.filter(
+        NotificationLog.recipient_id == user.id,
+        NotificationLog.curriculum_level == 'help-request',
+    ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
+
+    return jsonify({'requests': [
+        {
+            'preview': log.content_preview,
             'status': log.status,
             'sent_at': log.sent_at.strftime('%d %b, %I:%M %p') if log.sent_at else '',
         }

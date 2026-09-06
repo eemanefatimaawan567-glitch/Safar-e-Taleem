@@ -9,207 +9,172 @@ pinned: false
 license: mit
 ---
 
-# 🚌 Safar-e-Taleem
-### AI-Powered Safe Mobility & Education Continuity for Pakistan
+# 🚌 Safar-e-Taleem — Safe Mobility & Learning Continuity for Pakistan
 
 > **Because the journey should never become the cost of an education.**
 
-Safar-e-Taleem is a connected decision-support platform for Pakistani families and schools facing rising commute costs, student-safety concerns, limited connectivity and unequal device access. Instead of treating transport, safety and remote learning as separate problems, the prototype connects them into one continuity workflow.
+## 🌐 Live Demo
 
-## 🚀 Live Prototype
+🚀 **Try Safar-e-Taleem:** https://eemanefatimaawan.pythonanywhere.com/
 
-**Live app:** https://eemanefatimaawan.pythonanywhere.com/
+**Hackathon demo access:**
+- 👨‍👩‍👧 **Parent Demo:** https://eemanefatimaawan.pythonanywhere.com/demo-login/parent
+- 🏫 **Principal Demo:** https://eemanefatimaawan.pythonanywhere.com/demo-login/principal
 
-| Demo | Direct access |
+No installation or local setup is required to explore the deployed prototype.
+
+Safar-e-Taleem (*Journey of Education*) is an AI-powered school mobility, student-safety, and learning-continuity platform designed for Pakistani families affected by rising transportation costs.
+
+Built for the **Alibaba Cloud Hackathon**, the prototype brings together safe commute coordination, live student protection, fuel-aware school planning, low-tech learning delivery, community device sharing, and a Roman-Urdu/English AI assistant designed to integrate with **Alibaba Cloud DashScope (Qwen)**.
+
+---
+
+## 🎯 The Problem
+
+For many families, access to education also depends on whether they can afford and safely manage the daily journey to school. Rising transport costs can make regular attendance harder, while fully online learning is not always practical for households with limited internet access or shared devices.
+
+Safar-e-Taleem addresses the problem through three goals:
+
+1. **Reduce the burden of daily school transport.**
+2. **Make student journeys safer and more visible.**
+3. **Keep learning accessible when reaching school becomes difficult.**
+
+---
+
+## 💡 The Solution
+
+Safar-e-Taleem connects **parents and school principals** through one practical platform designed around real-world constraints in Pakistan.
+
+### 🚌 1. Safe Walking & Carpool Groups
+
+Parents provide their location and school information. Safar-e-Taleem uses **DBSCAN clustering** to identify nearby families attending the same school and organize local commute groups.
+
+Depending on distance, families can coordinate a **Walking School Bus** or shared transport/carpool arrangement. The platform also calculates travel information and potential transport savings.
+
+### 🛡️ 2. Live Student Protection
+
+Parents can share their live location during the school journey. The principal dashboard provides a live safety view, while one-tap **SOS alerts** can surface an emergency with location information to relevant group members and the school.
+
+The live system uses **Server-Sent Events (SSE)** with polling fallback for resilient location updates.
+
+### ⛽ 3. Hybrid Shift Predictor
+
+The principal dashboard monitors fuel-cost conditions and helps schools explore a hybrid attendance response when commuting becomes unusually expensive.
+
+In the prototype, a **3-day physical / 2-day remote** schedule reduces physical commute frequency by approximately **40% compared with five physical school days**. This is a prototype scenario estimate, not a measured real-world outcome.
+
+### 📱 4. Low-Tech Learning Delivery
+
+Safar-e-Taleem is designed for families who may not have laptops or reliable broadband. Lightweight learning material can be delivered through channels such as **WhatsApp, SMS and IVR**.
+
+Provider integrations can operate in simulation mode during demonstrations when external credentials are not configured.
+
+### 🏘️ 5. Mohallah Study Pods
+
+When some students have access to a smartphone or device and others do not, Safar-e-Taleem helps connect nearby families into **Mohallah Study Pods**. This allows students to share access to devices and offline learning resources within their local community.
+
+### 🎙️ 6. Ask Ammi/Abba — Roman-Urdu AI Assistant
+
+To make the platform easier for parents to use, Safar-e-Taleem includes **Ask Ammi/Abba**, a voice-enabled assistant for natural Roman Urdu and English interaction.
+
+The project supports **Alibaba Cloud DashScope (Qwen)** when the required API configuration is available and includes a rule-based fallback when the external AI service is unavailable. The availability of the external Qwen service can depend on the deployment environment.
+
+### 🧭 7. Connected Decision Support
+
+The prototype now brings its existing systems together through an **Education Continuity Workflow** on the principal dashboard. A principal can generate a coordinated response that summarizes fuel pressure, mobility groups, low-tech remote learning, Mohallah Study Pods and live student safety in one place.
+
+Parents also receive a **Recommended for Your Family** card that explains the most suitable commute option using the app's existing distance, DBSCAN cluster and savings calculations. These recommendations are deterministic decision-support outputs rather than additional LLM calls.
+
+---
+
+## ✨ Core Features
+
+| Feature | What it does |
 |---|---|
-| 👨‍👩‍👧 Parent | https://eemanefatimaawan.pythonanywhere.com/demo-login/parent |
-| 🏫 Principal | https://eemanefatimaawan.pythonanywhere.com/demo-login/principal |
-
-No installation is required to explore the deployed hackathon prototype.
-
----
-
-## 🎯 The Challenge
-
-For many families, education access depends on more than the classroom. A student must first be able to **afford and safely complete the journey to school**. When fuel prices rise, daily transport becomes harder to sustain. Moving learning online does not fully solve the problem either: some households have limited internet access, basic phones, or one shared device.
-
-Safar-e-Taleem therefore addresses the whole chain:
-
-**Can the student reach school affordably? → Can the journey be made safer? → If regular travel becomes difficult, how can learning continue?**
-
----
-
-# 🔄 How Safar-e-Taleem Works
-
-```text
-                    ⛽ FUEL / COMMUTE PRESSURE
-                              │
-                              ▼
-                  🧠 PRINCIPAL DECISION CENTER
-                              │
-                 ┌────────────┴────────────┐
-                 │                         │
-                 ▼                         ▼
-       🚶 MOBILITY OPTIMIZATION     🏫 HYBRID SHIFT
-       Walking School Bus           3 Physical Days
-       + Shared Carpool             + 2 Remote Days
-                 │                         │
-                 │                         ▼
-                 │              📱 LOW-TECH LEARNING
-                 │              WhatsApp • SMS • IVR
-                 │                         │
-                 │                         ▼
-                 │              🏘️ MOHALLAH STUDY PODS
-                 │              Shared device access
-                 │                         │
-                 └────────────┬────────────┘
-                              ▼
-                    🛡️ LIVE STUDENT SAFETY
-                  Location Sharing • SOS
-                              │
-                              ▼
-                     📊 PROJECTED IMPACT
-```
-
-### The connected response
-
-1. **Detect commute pressure** — the principal can explore changing fuel-cost scenarios through the Hybrid Shift Predictor and clearly labelled demo simulation controls.
-2. **Optimize physical journeys** — DBSCAN groups nearby same-school families for Walking School Buses or shared carpools.
-3. **Recommend a school response** — when commute pressure is high, the prototype can recommend a **3-day physical / 2-day remote** schedule.
-4. **Keep remote days accessible** — lightweight lessons can be delivered through simulated WhatsApp, SMS and IVR channels.
-5. **Support students without devices** — Mohallah Study Pods connect nearby students to shared device access.
-6. **Protect students who still travel** — live commute sharing, a principal safety map and SOS alerts keep active journeys visible.
-7. **Summarize projected impact** — the Continuity Plan brings mobility, remote learning, Study Pods and safety information together for the principal.
-
-> **Prototype impact note:** shifting from five physical school days to three represents a potential **~40% reduction in weekly physical commute frequency**. This is a scenario estimate, not a validated real-world cost reduction.
-
----
-
-## 👨‍👩‍👧 Parent Experience
-
-### 🧭 Smart Parent Recommendation
-The parent does not need to interpret raw clustering results. **Recommended for Your Family** uses existing distance, school, DBSCAN cluster and savings information to surface an appropriate walking/carpool option.
-
-### 🚶 Safe Walking & Carpool Groups
-Nearby families whose children attend the same school can be grouped into a **Walking School Bus** or shared transport arrangement. Estimated transport savings and route information help make the recommendation understandable.
-
-### 📍 Live Commute + SOS
-A parent can start/stop commute sharing during the school journey. Live location status is surfaced to the principal, and an SOS can raise an emergency state with the student's last known location.
-
-### 🎙️ Ask Ammi/Abba
-A Roman-Urdu/English assistant makes the platform more accessible to parents. The project integrates with **Alibaba Cloud DashScope (Qwen)** when configured and retains a fallback path when the external AI service is unavailable. Voice input/output uses browser capabilities where supported.
-
-### 🏘️ Mohallah Study Pods
-Families with device access can support nearby students who do not have reliable access to a smartphone or learning device.
-
----
-
-## 🏫 Principal Experience
-
-### 🧠 Today's Decision Center
-The principal gets actionable summaries instead of having to interpret every dashboard metric independently:
-
-- commute pressure and Hybrid Shift recommendation;
-- walking/carpool opportunities;
-- device-access support through Study Pods;
-- live student-safety/SOS status.
-
-### 🔄 Education Continuity Workflow
-**Generate Continuity Plan** connects existing systems into one coordinated response:
-
-**Fuel Pressure → Hybrid Schedule → Mobility → Low-Tech Learning → Study Pods → Live Protection → Projected Impact**
-
-### 🎮 Demo Scenario Simulator
-For reliable hackathon demonstrations, clearly labelled simulation controls can demonstrate **Normal Day**, **Fuel Crisis** and **Student SOS** scenarios without pretending simulated events are real-world data.
-
-### 🚨 Emergency/SOS Detail
-When an SOS is active, the principal can see the relevant journey status, last known location/update information and navigate to the live safety map. The feature is a school/parent prototype alert system; it does not claim direct emergency-service integration.
+| **AI Walking Groups** | DBSCAN clustering groups nearby families attending the same school into safe commute groups. |
+| **Fuel-aware routing** | Recommends walking/shared/carpool options based on distance and fuel conditions and estimates savings. |
+| **Live Petrol Monitor** | Tracks Pakistani fuel-price information and visualizes conditions for the principal dashboard. |
+| **Hybrid Shift Predictor** | Helps principals explore a 3-day physical / 2-day remote response to high commuting costs. |
+| **Live Student Protection** | Live location sharing, principal safety map, journey status and SOS alerts. |
+| **Ask Ammi/Abba AI** | Roman-Urdu/English chat and voice interface with optional Alibaba Cloud Qwen integration and fallback mode. |
+| **Mohallah Study Pods** | Connects nearby students to improve access to shared devices and learning resources. |
+| **WhatsApp / SMS / IVR Delivery** | Supports low-data curriculum and alert delivery, with simulation mode for demos. |
+| **Offline-first PWA** | Installable web app with caching support for unreliable connectivity. |
+| **Education Continuity Workflow** | Connects fuel pressure → hybrid scheduling → mobility → low-tech learning → study pods → live protection in one principal action. |
+| **Smart Parent Recommendation** | Converts existing cluster, distance and savings data into a clear walking/carpool recommendation for each family. |
+| **Principal Decision Center** | Surfaces commute pressure, mobility opportunities, device-access support and active safety alerts as quick actions. |
 
 ---
 
 ## 📸 Prototype Screenshots
 
 ### Landing Page
+Live fuel information and Safar-e-Taleem's main tools at a glance.
+
 ![Safar-e-Taleem landing page](docs/images/landing-page.png)
 
-### Parent Mobility Dashboard
+### Parent Dashboard
+Walking/carpool coordination with an OpenStreetMap-based route and commute information.
+
 ![Parent dashboard with map](docs/images/parent-dashboard-map.png)
 
-### Principal Decision Dashboard
+### Principal Dashboard
+Fuel monitoring and hybrid scheduling tools for school decision-makers.
+
 ![Principal dashboard](docs/images/principal-dashboard.png)
 
-### Live Student Safety Map
+### Live Safety Map
+Principal view for monitoring active student journeys and safety status.
+
 ![Principal live safety map](docs/images/principal-live-safety-map.png)
 
 ### Registration & Address Lookup
+Families can enter a typed address that is resolved to coordinates when GPS is unavailable or not preferred.
+
 ![Registration address lookup](docs/images/register-address-lookup.png)
-
----
-
-## ✨ Feature Map
-
-| Layer | Feature | Purpose |
-|---|---|---|
-| **Mobility** | DBSCAN Walking/Carpool Groups | Match nearby same-school families |
-| **Decision Support** | Smart Parent Recommendation | Convert cluster/distance data into a clear family recommendation |
-| **School Planning** | Hybrid Shift Predictor | Explore a 3-physical / 2-remote-day response to commute pressure |
-| **Orchestration** | Education Continuity Workflow | Connect mobility, remote learning, device access and safety |
-| **Principal UX** | Decision Center | Surface important actions and alerts in one place |
-| **Safety** | Live Commute + Safety Map + SOS | Keep active student journeys visible |
-| **Accessibility** | Ask Ammi/Abba | Roman-Urdu/English assistance with Qwen integration |
-| **Learning** | WhatsApp / SMS / IVR | Low-data learning-delivery prototype |
-| **Device Access** | Mohallah Study Pods | Support students through community device sharing |
-| **Resilience** | PWA + fallback modes | Improve usability under unreliable connectivity |
-| **Demo** | Scenario Simulator | Reliably demonstrate fuel-crisis and SOS flows |
-
----
-
-## 🧠 AI & Decision Intelligence
-
-Safar-e-Taleem uses different techniques for different problems rather than using an LLM for everything:
-
-- **DBSCAN (scikit-learn)** — geographic clustering of nearby same-school families without requiring a predefined number of clusters.
-- **Alibaba Cloud DashScope / Qwen** — Roman-Urdu and English assistance through Ask Ammi/Abba when external AI configuration is available.
-- **Deterministic recommendation logic** — converts existing distance, cluster and savings data into parent recommendations.
-- **Fuel-aware decision logic** — supports the Hybrid Shift Predictor and Principal Decision Center.
-- **Real-time journey state** — connects live location/SOS information with the principal safety experience.
 
 ---
 
 ## 🛠 Technology Stack
 
-| Area | Technology |
-|---|---|
-| Backend | Python, Flask, Flask-SQLAlchemy, SQLite |
-| AI | Alibaba Cloud DashScope (Qwen), OpenAI-compatible SDK |
-| ML | scikit-learn DBSCAN, NumPy, pandas |
-| Maps | Leaflet + OpenStreetMap |
-| Real-time | Server-Sent Events (SSE) + polling fallback |
-| Frontend | Jinja2, HTML, CSS, vanilla JavaScript, Chart.js |
-| Voice | Web Speech API |
-| Low-tech delivery | WhatsApp/SMS integrations + simulation mode |
-| Offline support | Progressive Web App + service worker |
-| Deployment | PythonAnywhere |
+- **Backend:** Python, Flask, Flask-SQLAlchemy, SQLite
+- **AI:** Alibaba Cloud DashScope (Qwen) integration via the OpenAI-compatible SDK
+- **Machine Learning:** scikit-learn DBSCAN, NumPy, pandas
+- **Maps:** Leaflet + OpenStreetMap
+- **Real-time updates:** Server-Sent Events (SSE) + polling fallback
+- **Frontend:** HTML/Jinja2, vanilla JavaScript, CSS, Chart.js, Web Speech API
+- **Low-tech delivery:** WhatsApp/SMS provider integrations + simulation mode
+- **Offline support:** Progressive Web App (PWA) + service worker
+- **Live deployment:** PythonAnywhere
 
 ---
 
-## 📊 What the Prototype Demonstrates
+## 🧠 How the AI/ML Fits In
 
-Safar-e-Taleem is designed to demonstrate the potential to:
+Safar-e-Taleem uses technology where it solves a specific problem rather than adding AI only as a label:
+
+- **DBSCAN** performs geographic clustering of nearby same-school families without requiring a predefined number of groups.
+- **Alibaba Cloud Qwen integration** supports accessible Roman-Urdu/English assistance for parents when the external service is available.
+- **Fuel-aware decision logic** supports the principal's hybrid-shift planning workflow.
+- **Location and routing services** connect commute recommendations with real map-based journeys.
+
+---
+
+## 📊 Potential Impact
+
+The prototype is designed to demonstrate how schools and communities could:
 
 - reduce unnecessary individual school trips through shared mobility;
-- give parents a clear transport recommendation rather than raw map data;
-- help principals respond systematically to commute-cost pressure;
-- maintain learning access during reduced physical attendance;
-- support students with limited device/connectivity access;
-- improve visibility of active student journeys and SOS states;
-- make assistance accessible through Roman-Urdu/English interaction.
+- improve visibility and safety during student journeys;
+- maintain learning access when physical attendance becomes difficult;
+- support students with limited device or connectivity access;
+- make school information more accessible to parents through Roman-Urdu voice interaction.
 
-**All financial savings, projected impact figures and the ~40% commute-frequency figure should be interpreted as prototype estimates unless explicitly backed by measured data.**
+The **~40% commute reduction** shown by the hybrid-shift feature refers specifically to the prototype 3-physical-day versus 5-physical-day weekly scenario. It should not be interpreted as a validated real-world cost reduction study.
 
 ---
 
-## 🧪 Run & Test Locally
+## 🚀 Run Locally
 
 ```bash
 pip install -r requirements.txt
@@ -217,55 +182,68 @@ cp .env.example .env
 python app.py
 ```
 
-Run the automated tests with:
+The application creates its local database and demo data on first run.
+
+### Demo Access
+
+No password is needed for the dedicated hackathon demo routes:
+
+- **Parent:** `/demo-login/parent`
+- **Principal:** `/demo-login/principal`
+
+For Qwen integration, add your own `DASHSCOPE_API_KEY` to the local `.env` file. **Never commit real credentials to GitHub.**
+
+---
+
+## 🧪 Tests
 
 ```bash
 python -m pytest tests/ -q
 ```
 
-Dedicated demo routes are available for the hackathon:
-
-```text
-/demo-login/parent
-/demo-login/principal
-```
-
-For Qwen, add your own `DASHSCOPE_API_KEY` to a private `.env` file. **Never commit credentials.**
+The test suite covers core commute, geographic, notification, AI, petrol, curriculum and API behavior. External notifications can run in simulation mode so the prototype can be demonstrated without exposing provider credentials.
 
 ---
 
-## 🔐 Security & Demo Transparency
+## ☁️ Deployment
 
-- Real API keys, passwords and tokens belong in `.env`, never in Git.
-- `.env.example` contains placeholders only.
-- WhatsApp/SMS/IVR can operate in simulation mode when external providers are not configured.
-- Demo fuel/SOS scenario controls are explicitly simulation tools.
-- Prototype projections are labelled as estimates rather than validated real-world outcomes.
+### Live Hackathon Deployment — PythonAnywhere
+
+The current public prototype is deployed at:
+
+**https://eemanefatimaawan.pythonanywhere.com/**
+
+Judges can use the Parent and Principal demo buttons on the landing page without installing the project locally.
+
+The repository also contains a `Dockerfile` and gunicorn-compatible configuration for other deployment environments.
+
+---
+
+## 🔐 Environment & Security
+
+Real API keys, passwords and tokens must **never** be committed to the repository. Use `.env` locally and keep only placeholder values in `.env.example`.
+
+Important configuration includes:
+
+| Variable | Purpose |
+|---|---|
+| `SECRET_KEY` | Flask session signing |
+| `DASHSCOPE_API_KEY` | Alibaba Cloud Qwen integration |
+| `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | Optional WhatsApp delivery integration |
+| `SMS_GATEWAY_URL` / related credentials | Optional SMS gateway integration |
+| `DATABASE_URL` | Production database configuration |
+| `SSE_CYCLE_SECONDS` | Live-location stream cycle configuration |
+| `FLASK_DEBUG` | Development/production debug configuration |
+| `PORT` | Application port supplied by the hosting environment |
+
+See `.env.example` for the configuration template.
 
 ---
 
 ## 🏆 Hackathon Vision
 
-Safar-e-Taleem is **not just a transport app and not just an online-learning app**.
+Safar-e-Taleem is not simply a transport application. It treats **mobility, student safety and continuity of education as one connected problem**.
 
-It treats mobility, affordability, student safety, connectivity and device access as parts of the same education-access problem.
+When a child can reach school, the platform helps make that journey safer and more affordable. When the journey itself becomes the barrier, Safar-e-Taleem helps the school and community adapt so learning can continue.
 
-```text
-If a child CAN reach school
-        ↓
-Make the journey safer + more affordable
-
-If reaching school becomes difficult
-        ↓
-Adapt the schedule + keep learning accessible
-
-If the child lacks a device
-        ↓
-Connect them to community support
-
-Throughout the journey
-        ↓
-Keep student safety visible
-```
-
-> ## **Because the journey should never become the cost of an education.**
+> ### **Because the journey should never become the cost of an education.**

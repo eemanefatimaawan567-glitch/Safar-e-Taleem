@@ -9,6 +9,369 @@
     <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+<style id="lowtech-polish">
+#low-tech {
+    padding: 26px;
+}
+
+.lowtech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.lowtech-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lowtech-card h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.lowtech-card p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.85rem;
+    line-height: 1.55;
+}
+
+.lowtech-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 1.1rem;
+}
+
+.packet-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+}
+
+.packet-controls select,
+.packet-controls .form-control {
+    min-height: 40px;
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #fff;
+    font-size: 0.82rem;
+    color: #0f172a;
+}
+
+.packet-controls .btn {
+    min-height: 40px;
+    border-radius: 9px;
+    padding: 8px 14px;
+    white-space: nowrap;
+}
+
+.delivery-status {
+    margin-top: 8px;
+    font-size: 0.8rem;
+}
+
+@media (max-width: 1000px) {
+    .lowtech-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+
+<style id="study-pods-polish">
+#study-pods {
+    padding: 26px;
+}
+
+#study-pods .panel-header {
+    margin-bottom: 14px;
+}
+
+#study-pods .study-pod-stats,
+#study-pods .pod-stats,
+#study-pods .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin: 18px 0;
+}
+
+#study-pods .study-pod-card,
+#study-pods .pod-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    margin-bottom: 14px;
+}
+
+#study-pods .study-pod-grid,
+#study-pods .pods-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+
+#study-pods .stat-card,
+#study-pods .pod-stat {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+#study-pods h3,
+#study-pods h4 {
+    margin: 0 0 8px;
+    color: #0f172a;
+}
+
+#study-pods p {
+    line-height: 1.55;
+}
+
+#study-pods .pod-member,
+#study-pods .member-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+#study-pods .pod-member:last-child,
+#study-pods .member-row:last-child {
+    border-bottom: 0;
+}
+
+#study-pods .fa-location-dot {
+    color: #047857;
+}
+
+#study-pods .fa-wifi {
+    color: #0369a1;
+}
+
+#study-pods .fa-mobile-screen,
+#study-pods .fa-mobile-screen-button {
+    color: #7c3aed;
+}
+
+#study-pods .badge {
+    white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+    #study-pods .study-pod-grid,
+    #study-pods .pods-grid,
+    #study-pods .study-pod-stats,
+    #study-pods .pod-stats,
+    #study-pods .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+
+<style id="study-pods-exact-fix">
+#study-pods {
+    padding: 24px;
+}
+
+#study-pods .study-pods-desc {
+    margin: 0 0 18px;
+    color: #64748b;
+    line-height: 1.6;
+    font-size: 0.9rem;
+}
+
+#study-pods .pod-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin: 18px 0 22px;
+}
+
+#study-pods .pod-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+}
+
+#study-pods .pod-stat-label {
+    color: #64748b;
+    font-size: 0.78rem;
+    margin-bottom: 4px;
+}
+
+#study-pods .pod-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+#study-pods .pod-stat > i {
+    font-size: 1.25rem;
+    color: #047857;
+}
+
+#study-pods .pod-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+#study-pods .pod-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    min-width: 0;
+}
+
+#study-pods .pod-card-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+#study-pods .pod-host-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #ecfdf5;
+    color: #047857;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+#study-pods .pod-host-name {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.95rem;
+}
+
+#study-pods .pod-host-area {
+    color: #64748b;
+    font-size: 0.76rem;
+    margin-top: 2px;
+}
+
+#study-pods .pod-device-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#study-pods .pod-members-label {
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+#study-pods .pod-member-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.82rem;
+}
+
+#study-pods .pod-member-row:last-of-type {
+    border-bottom: 0;
+}
+
+#study-pods .pod-member-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    flex: 0 0 30px;
+}
+
+#study-pods .pod-distance {
+    margin-left: auto;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+#study-pods .pod-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    color: #047857;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+    #study-pods .pod-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    #study-pods .pod-stats-row,
+    #study-pods .pod-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #study-pods .pod-card-header {
+        grid-template-columns: auto 1fr;
+    }
+
+    #study-pods .pod-device-badge {
+        grid-column: 1 / -1;
+        width: fit-content;
+    }
+}
+</style>
+
 </head>
 <body>
 
@@ -48,6 +411,17 @@
         <div id="sos-banner" class="sos-banner">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <span></span>
+        </div>
+
+
+        <!-- NON-EMERGENCY FAMILY HELP REQUESTS -->
+        <div id="family-help-panel" class="panel-card ui-card"
+             style="display:none;margin:16px 0;border-left:5px solid #0f766e;background:#f0fdfa;">
+            <div class="panel-header">
+                <p class="panel-title" style="color:#115e59;"><i class="fa-solid fa-hand-holding-heart"></i> Family Help Requests</p>
+                <span class="badge" id="family-help-count" style="background:#ccfbf1;color:#115e59;">0</span>
+            </div>
+            <div id="family-help-list" style="font-size:.84rem;line-height:1.55;"></div>
         </div>
 
         <!-- DEMO SCENARIO SIMULATOR: clearly labelled, principal-only judging aid -->
@@ -286,7 +660,7 @@
                     <p class="panel-title"><i class="fa-solid fa-chart-line"></i> Petrol Price History</p>
                     <span class="badge" id="price-record-count">{{ petrol_prices|length if petrol_prices else 0 }} records</span>
                 </div>
-                <canvas id="petrolChart" height="170"></canvas>
+                <div style="height:220px; position:relative;"><canvas id="petrolChart"></canvas></div>
 
                 <div id="simulation-preview" style="margin-top: 16px; padding: 12px; background: #fff5f5; border: 1px solid #fecaca; border-radius: 10px; color: #b91c1c; font-size: 0.82rem; font-weight: 600;">
                     <i class="fa-solid fa-flask" aria-hidden="true"></i> Simulation Preview: Normal — 5-Day Physical Schedule
@@ -401,7 +775,7 @@
                     <span class="safety-chip safety-sos"><span class="safety-dot safety-dot-sos"></span><span id="sos-count">0</span> SOS</span>
                 </div>
             </div>
-            <div id="principal-live-map" class="principal-live-map"></div>
+            <div id="principal-live-map" class="principal-live-map" style="height:320px; min-height:320px; width:100%; border-radius:14px; overflow:hidden;"></div>
             <div id="map-empty-state" class="map-empty-state">
                 <i class="fa-solid fa-location-crosshairs"></i>
                 <p>No students are currently sharing their commute location.</p>
@@ -718,23 +1092,120 @@
         }
     }
 
+
+    // LIVE STUDENT SAFETY MAP
+    let principalSafetyMap = null;
+    let principalSafetyMarkers = [];
+
+    function initSafetyMap() {
+        const el = document.getElementById('principal-live-map');
+        if (!el || principalSafetyMap) return;
+
+        principalSafetyMap = L.map(el).setView([33.6844, 73.0479], 11);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(principalSafetyMap);
+    }
+
+    async function refreshSafetyMap() {
+        try {
+            initSafetyMap();
+            if (!principalSafetyMap) return;
+
+            const resp = await fetch('/api/location/pod');
+            if (!resp.ok) return;
+
+            const data = await resp.json();
+            const shares = data.pod || [];
+
+            principalSafetyMarkers.forEach(marker => {
+                principalSafetyMap.removeLayer(marker);
+            });
+            principalSafetyMarkers = [];
+
+            let live = 0;
+            let stale = 0;
+            let sos = 0;
+            const bounds = [];
+
+            shares.forEach(share => {
+                const lat = Number(share.latitude);
+                const lng = Number(share.longitude);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+                if (share.is_sos) sos++;
+                if (share.is_stale) stale++;
+                else live++;
+
+                const marker = L.marker([lat, lng]).addTo(principalSafetyMap);
+
+                const name =
+                    share.user_name ||
+                    share.name ||
+                    'Student / Family';
+
+                let status = share.is_sos
+                    ? 'SOS ACTIVE'
+                    : (share.is_stale ? 'Stale location' : 'Live commute');
+
+                marker.bindPopup(
+                    '<strong>' + name + '</strong><br>' +
+                    status + '<br>' +
+                    lat.toFixed(5) + ', ' + lng.toFixed(5)
+                );
+
+                principalSafetyMarkers.push(marker);
+                bounds.push([lat, lng]);
+            });
+
+            document.getElementById('live-count').textContent = live;
+            document.getElementById('stale-count').textContent = stale;
+            document.getElementById('sos-count').textContent = sos;
+
+            const empty = document.getElementById('map-empty-state');
+            if (empty) {
+                empty.style.display = bounds.length ? 'none' : '';
+            }
+
+            const lastUpdate = document.getElementById('last-map-update');
+            if (lastUpdate) {
+                lastUpdate.textContent =
+                    'Updated ' + new Date().toLocaleTimeString();
+            }
+
+            if (bounds.length === 1) {
+                principalSafetyMap.setView(bounds[0], 15);
+            } else if (bounds.length > 1) {
+                principalSafetyMap.fitBounds(bounds, {padding: [25, 25]});
+            }
+
+            setTimeout(() => principalSafetyMap.invalidateSize(), 100);
+
+        } catch (err) {
+            console.warn('Safety map refresh failed:', err);
+        }
+    }
+
     async function refreshSosDetailPanel() {
         const panel = document.getElementById('sos-detail-panel');
         const content = document.getElementById('sos-detail-content');
         if (!panel || !content) return;
         try {
-            const resp = await fetch('/api/location/poll');
+            const resp = await fetch('/api/location/pod');
             if (!resp.ok) return;
             const data = await resp.json();
-            const shares = data.shares || [];
+            const shares = data.pod || [];
             const sos = shares.find(s => s.is_sos);
             if (!sos) {
                 panel.style.display = 'none';
                 return;
             }
             panel.style.display = 'block';
-            const lat = Number(sos.lat || 0).toFixed(5);
-            const lng = Number(sos.lng || 0).toFixed(5);
+            const lat = Number(sos.latitude || 0).toFixed(5);
+            const lng = Number(sos.longitude || 0).toFixed(5);
             const lastUpdate = sos.updated_at || sos.timestamp || 'Unknown';
             const userId = Number(sos.user_id || 0);
             content.innerHTML = `
@@ -764,6 +1235,37 @@
         }
     }
 
+    async function refreshFamilyHelpRequests() {
+        const panel = document.getElementById('family-help-panel');
+        const list = document.getElementById('family-help-list');
+        const count = document.getElementById('family-help-count');
+        if (!panel || !list || !count) return;
+
+        try {
+            const resp = await fetch('/api/principal/help-requests');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const requests = data.requests || [];
+            count.textContent = String(requests.length);
+
+            if (!requests.length) {
+                panel.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            panel.style.display = 'block';
+            list.innerHTML = requests.map((r) => `
+                <div style="padding:10px 12px;background:#fff;border:1px solid #99f6e4;border-radius:10px;margin-bottom:8px;">
+                    <div style="font-weight:700;color:#115e59;"><i class="fa-solid fa-circle-info"></i> ${r.preview}</div>
+                    <div style="margin-top:4px;color:#64748b;font-size:.76rem;">${r.sent_at || 'Just now'} • Non-emergency help request</div>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.warn('Family help request refresh failed:', err);
+        }
+    }
+
     async function runDemoScenario(action) {
         const status = document.getElementById('demo-scenario-status');
         if (status) status.textContent = 'Applying simulated scenario…';
@@ -786,8 +1288,13 @@
         }
     }
 
+    refreshSafetyMap();
     refreshSosDetailPanel();
+    refreshFamilyHelpRequests();
+
+    setInterval(refreshSafetyMap, 5000);
     setInterval(refreshSosDetailPanel, 5000);
+    setInterval(refreshFamilyHelpRequests, 5000);
 </script>
 <script src="{{ url_for('static', filename='js/principal-map.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lowtech.js') }}"></script>

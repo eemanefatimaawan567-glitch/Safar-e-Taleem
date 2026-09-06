@@ -79,6 +79,12 @@ To make the platform easier for parents to use, Safar-e-Taleem includes **Ask Am
 
 The project supports **Alibaba Cloud DashScope (Qwen)** when the required API configuration is available and includes a rule-based fallback when the external AI service is unavailable. The availability of the external Qwen service can depend on the deployment environment.
 
+### 🧭 7. Connected Decision Support
+
+The prototype now brings its existing systems together through an **Education Continuity Workflow** on the principal dashboard. A principal can generate a coordinated response that summarizes fuel pressure, mobility groups, low-tech remote learning, Mohallah Study Pods and live student safety in one place.
+
+Parents also receive a **Recommended for Your Family** card that explains the most suitable commute option using the app's existing distance, DBSCAN cluster and savings calculations. These recommendations are deterministic decision-support outputs rather than additional LLM calls.
+
 ---
 
 ## ✨ Core Features
@@ -94,6 +100,9 @@ The project supports **Alibaba Cloud DashScope (Qwen)** when the required API co
 | **Mohallah Study Pods** | Connects nearby students to improve access to shared devices and learning resources. |
 | **WhatsApp / SMS / IVR Delivery** | Supports low-data curriculum and alert delivery, with simulation mode for demos. |
 | **Offline-first PWA** | Installable web app with caching support for unreliable connectivity. |
+| **Education Continuity Workflow** | Connects fuel pressure → hybrid scheduling → mobility → low-tech learning → study pods → live protection in one principal action. |
+| **Smart Parent Recommendation** | Converts existing cluster, distance and savings data into a clear walking/carpool recommendation for each family. |
+| **Principal Decision Center** | Surfaces commute pressure, mobility opportunities, device-access support and active safety alerts as quick actions. |
 
 ---
 

@@ -143,6 +143,48 @@
             </div>
         </div>
 
+        <!-- SMART PARENT RECOMMENDATION — explainable decision from existing commute data -->
+        <div class="panel-card ui-card" id="smart-recommendation" style="margin-top: 24px; border-left: 5px solid var(--primary);">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Recommended for Your Family</p>
+                <span class="badge">Smart Commute Match</span>
+            </div>
+            <div style="display:grid; grid-template-columns: minmax(0, 1.5fr) minmax(220px, .8fr); gap:18px; align-items:center;">
+                <div>
+                    <div style="display:flex; gap:12px; align-items:flex-start;">
+                        <div style="width:42px;height:42px;border-radius:12px;background:#e0f2f1;display:flex;align-items:center;justify-content:center;color:#004D40;flex:0 0 auto;">
+                            <i class="fa-solid {{ smart_recommendation.icon }}"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0 0 6px;font-size:1.05rem;color:var(--text-main);">{{ smart_recommendation.title }}</h3>
+                            <p style="margin:0;color:var(--text-muted);font-size:.86rem;line-height:1.55;">{{ smart_recommendation.summary }}</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+                        <span class="badge"><i class="fa-solid fa-people-group"></i> Group size: {{ smart_recommendation.group_size }}</span>
+                        <span class="badge"><i class="fa-solid fa-school"></i> {{ smart_recommendation.distance_km }} km to school</span>
+                        {% if smart_recommendation.estimated_saving > 0 %}
+                        <span class="badge" style="background:#ecfdf5;color:#065f46;"><i class="fa-solid fa-piggy-bank"></i> Estimated saving: Rs {{ "{:,.0f}".format(smart_recommendation.estimated_saving) }}/month</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+                    {% if smart_recommendation.kind != 'none' %}
+                    <a class="btn btn-primary" href="#walking-group" onclick="document.querySelector('.split-grid').scrollIntoView({behavior:'smooth'}); return false;">
+                        <i class="fa-solid fa-users"></i> View Group
+                    </a>
+                    <a class="btn btn-outline" href="#live-location" onclick="document.getElementById('live-location').scrollIntoView({behavior:'smooth'}); return false;">
+                        <i class="fa-solid fa-map"></i> View Route
+                    </a>
+                    {% else %}
+                    <a class="btn btn-outline" href="#study-pod" onclick="document.getElementById('study-pod').scrollIntoView({behavior:'smooth'}); return false;">
+                        <i class="fa-solid fa-house-laptop"></i> Explore Study Pod
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <div class="split-grid">
 
             <div class="panel-card ui-card">

@@ -50,6 +50,31 @@
             <span></span>
         </div>
 
+        <!-- DEMO SCENARIO SIMULATOR: clearly labelled, principal-only judging aid -->
+        <div class="panel-card ui-card" id="demo-simulator" style="margin:16px 0;border:1px dashed #94a3b8;background:#f8fafc;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-gamepad"></i> Demo Scenario Simulator</p>
+                <span class="badge">SIMULATION ONLY</span>
+            </div>
+            <p style="margin:0 0 12px;color:var(--text-muted);font-size:.8rem;line-height:1.5;">For hackathon judging: instantly demonstrate normal operations, a fuel-cost crisis, or a simulated student SOS. These controls do not represent real-world events.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-outline" onclick="runDemoScenario('normal')"><i class="fa-solid fa-circle-check"></i> Normal Day</button>
+                <button class="btn btn-outline" onclick="runDemoScenario('fuel_crisis')"><i class="fa-solid fa-gas-pump"></i> Fuel Crisis</button>
+                <button class="btn btn-outline" onclick="runDemoScenario('student_sos')"><i class="fa-solid fa-triangle-exclamation"></i> Student SOS</button>
+                <button class="btn btn-outline" onclick="runDemoScenario('reset')"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Demo</button>
+            </div>
+            <div id="demo-scenario-status" style="margin-top:10px;font-size:.78rem;color:var(--text-muted);">Ready — no simulated scenario is active.</div>
+        </div>
+
+        <!-- Active SOS details are populated from the existing live-location API. -->
+        <div id="sos-detail-panel" class="panel-card ui-card" style="display:none;margin:16px 0;border-left:5px solid #dc2626;background:#fff7f7;">
+            <div class="panel-header">
+                <p class="panel-title" style="color:#991b1b;"><i class="fa-solid fa-triangle-exclamation"></i> ACTIVE SOS</p>
+                <span class="badge" style="background:#fee2e2;color:#991b1b;">Needs attention</span>
+            </div>
+            <div id="sos-detail-content" style="font-size:.84rem;line-height:1.65;"></div>
+        </div>
+
         <div class="petrol-card" id="alert-card" style="border-left: 6px solid {{ '#ef4444' if alert else '#004D40' }};">
             <div style="flex: 1;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
@@ -151,6 +176,40 @@
             </div>
         </div>
 
+        <!-- PRINCIPAL DECISION CENTER -->
+        <div class="panel-card ui-card" id="decision-center" style="margin-top:24px;">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-compass"></i> Today's Decision Center</p>
+                <span class="badge">Action Summary</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+                <div style="padding:14px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+                    <div style="font-weight:700;font-size:.88rem;margin-bottom:6px;">
+                        <i class="fa-solid fa-gas-pump" style="color:{{ '#f59e0b' if decision_data.commute_risk else '#16a34a' }};"></i> Commute Pressure
+                    </div>
+                    <p style="margin:0 0 10px;color:var(--text-muted);font-size:.8rem;line-height:1.45;">
+                        {% if decision_data.commute_risk %}High commute pressure detected. Consider the prototype 3 physical / 2 remote day schedule.{% else %}Fuel pressure is currently below the demo critical threshold.{% endif %}
+                    </p>
+                    <a href="#continuity-workflow" class="btn btn-outline" style="padding:7px 10px;font-size:.76rem;">View Continuity Plan</a>
+                </div>
+                <div style="padding:14px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+                    <div style="font-weight:700;font-size:.88rem;margin-bottom:6px;"><i class="fa-solid fa-people-group" style="color:#16a34a;"></i> Mobility Opportunity</div>
+                    <p style="margin:0 0 10px;color:var(--text-muted);font-size:.8rem;line-height:1.45;">{{ decision_data.mobility.families_supported }} families are currently grouped into {{ decision_data.mobility.total_groups }} walking/carpool cluster{{ 's' if decision_data.mobility.total_groups != 1 }}.</p>
+                    <a href="#transport-breakdown" class="btn btn-outline" style="padding:7px 10px;font-size:.76rem;">View Mobility Groups</a>
+                </div>
+                <div style="padding:14px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+                    <div style="font-weight:700;font-size:.88rem;margin-bottom:6px;"><i class="fa-solid fa-mobile-screen" style="color:#f59e0b;"></i> Device Access</div>
+                    <p style="margin:0 0 10px;color:var(--text-muted);font-size:.8rem;line-height:1.45;">{{ decision_data.study_pods.families_supported }} families are supported by {{ decision_data.study_pods.pods_formed }} Mohallah Study Pod{{ 's' if decision_data.study_pods.pods_formed != 1 }}; {{ decision_data.study_pods.families_unmatched }} remain unmatched.</p>
+                    <a href="#study-pods" class="btn btn-outline" style="padding:7px 10px;font-size:.76rem;">View Study Pods</a>
+                </div>
+                <div style="padding:14px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+                    <div style="font-weight:700;font-size:.88rem;margin-bottom:6px;"><i class="fa-solid fa-shield-halved" style="color:{{ '#dc2626' if decision_data.safety.active_sos else '#16a34a' }};"></i> Student Safety</div>
+                    <p style="margin:0 0 10px;color:var(--text-muted);font-size:.8rem;line-height:1.45;">{% if decision_data.safety.active_sos %}{{ decision_data.safety.active_sos }} active SOS alert{{ 's' if decision_data.safety.active_sos != 1 }} require attention.{% else %}No active SOS alerts. {{ decision_data.safety.active_commutes }} commute{{ 's' if decision_data.safety.active_commutes != 1 }} currently sharing location.{% endif %}</p>
+                    <a href="#live-safety-map" class="btn btn-outline" style="padding:7px 10px;font-size:.76rem;">Open Safety Map</a>
+                </div>
+            </div>
+        </div>
+
         <div class="metric-grid">
             <div class="metric ui-card">
                 <div class="metric-header">
@@ -178,7 +237,7 @@
             </div>
         </div>
 
-        <div class="split-grid">
+        <div class="split-grid" id="transport-breakdown">
 
             <div class="panel-card ui-card">
                 <div class="panel-header">
@@ -238,6 +297,30 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- EDUCATION CONTINUITY WORKFLOW -->
+        <div class="panel-card ui-card" id="continuity-workflow" style="margin-top:24px;border-left:5px solid var(--primary);">
+            <div class="panel-header">
+                <p class="panel-title"><i class="fa-solid fa-diagram-project"></i> Education Continuity Workflow</p>
+                <span class="badge" id="continuity-risk-badge">Ready</span>
+            </div>
+            <p style="font-size:.84rem;color:var(--text-muted);line-height:1.55;margin-bottom:14px;">
+                Connect fuel-cost pressure to mobility optimization, low-tech remote learning, Mohallah Study Pods and live student protection in one coordinated plan.
+            </p>
+            <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px;font-size:.78rem;font-weight:600;color:var(--text-muted);">
+                <span class="badge">Fuel Cost Increase</span><i class="fa-solid fa-arrow-right"></i>
+                <span class="badge">Hybrid Recommendation</span><i class="fa-solid fa-arrow-right"></i>
+                <span class="badge">Mobility</span><i class="fa-solid fa-arrow-right"></i>
+                <span class="badge">Remote Learning</span><i class="fa-solid fa-arrow-right"></i>
+                <span class="badge">Study Pods</span><i class="fa-solid fa-arrow-right"></i>
+                <span class="badge">Live Protection</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <button class="btn btn-primary" id="generate-continuity-btn" onclick="generateContinuityPlan()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Continuity Plan</button>
+                <span style="font-size:.78rem;color:var(--text-muted);">40% commute-frequency reduction is a <strong>prototype scenario estimate</strong>, not a validated real-world result.</span>
+            </div>
+            <div id="continuity-plan-output" style="display:none;margin-top:18px;"></div>
         </div>
 
         <div class="panel-card ui-card" id="study-pods" style="margin-top: 24px;">
@@ -448,6 +531,160 @@ document.addEventListener('DOMContentLoaded', () => {
         _paintSpikeSlider(spikeSlider, false);
     }
 });
+
+
+// --- DEMO SCENARIOS + SOS DETAIL PANEL ---
+async function runDemoScenario(action) {
+    const status = document.getElementById('demo-scenario-status');
+    if (status) status.textContent = 'Applying demo scenario...';
+    try {
+        const res = await fetch('/api/demo/scenario', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({action})
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Scenario failed');
+
+        const slider = document.getElementById('petrol-spike-slider');
+        if (action === 'fuel_crisis' && slider) {
+            slider.value = 430; slider.dataset.simulating = '1';
+            slider.dispatchEvent(new Event('input', {bubbles:true}));
+            if (status) status.innerHTML = '<strong>Fuel Crisis:</strong> simulated Rs 430/L. Generate the Continuity Plan to show the response.';
+        } else if (action === 'student_sos') {
+            if (status) status.innerHTML = '<strong>Student SOS:</strong> simulated emergency created for ' + data.demo_parent.name + '. See the Safety Map and SOS panel.';
+        } else {
+            if (slider) { slider.value = 343; slider.dataset.simulating = '0'; slider.dispatchEvent(new Event('input', {bubbles:true})); }
+            if (status) status.textContent = action === 'reset' ? 'Demo reset.' : 'Normal Day scenario active.';
+        }
+        await refreshSosDetails();
+        if (window.refreshPrincipalSafetyMap) window.refreshPrincipalSafetyMap();
+    } catch (e) {
+        if (status) status.textContent = 'Could not apply scenario: ' + e.message;
+    }
+}
+
+async function refreshSosDetails() {
+    const panel = document.getElementById('sos-detail-panel');
+    const content = document.getElementById('sos-detail-content');
+    if (!panel || !content) return;
+    try {
+        const res = await fetch('/api/location/pod');
+        const data = await res.json();
+        const alerts = (data.pod || []).filter(e => e.is_sos);
+        if (!alerts.length) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        content.innerHTML = alerts.map(e => {
+            const age = Number(e.age_seconds || 0);
+            const ageText = age < 60 ? age + ' seconds ago' : Math.floor(age/60) + ' minute(s) ago';
+            return `<div style="padding:10px 0;border-bottom:1px solid #fecaca;">
+                <strong>${_escapeHtml(e.name)}</strong><br>
+                Last known location: ${Number(e.latitude).toFixed(5)}, ${Number(e.longitude).toFixed(5)}<br>
+                Last update: ${ageText} · Status: <strong style="color:#dc2626;">Emergency</strong><br>
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <a class="btn btn-outline" href="#live-safety-map">View on Map</a>
+                    <button class="btn btn-outline" onclick="resolvePrincipalSos(${Number(e.user_id)})">Mark Resolved</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (_) { /* live map polling remains the source of truth */ }
+}
+
+function _escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
+async function resolvePrincipalSos(userId) {
+    if (!confirm('Mark this SOS as resolved?')) return;
+    const res = await fetch('/api/principal/sos/' + userId + '/resolve', {method:'POST'});
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Could not resolve SOS'); return; }
+    await refreshSosDetails();
+    refreshSosBanner();
+}
+
+setInterval(refreshSosDetails, 6000);
+document.addEventListener('DOMContentLoaded', refreshSosDetails);
+
+// --- EDUCATION CONTINUITY WORKFLOW ---
+async function generateContinuityPlan() {
+    const output = document.getElementById('continuity-plan-output');
+    const button = document.getElementById('generate-continuity-btn');
+    const badge = document.getElementById('continuity-risk-badge');
+    const slider = document.getElementById('petrol-spike-slider');
+    if (!output || !button) return;
+
+    const body = {};
+    if (slider && slider.dataset.simulating === '1') {
+        body.simulated_price = Number(slider.value);
+    }
+
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+    output.style.display = 'block';
+    output.innerHTML = '<div style="padding:14px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:.84rem;">Building the coordinated plan from current Safar-e-Taleem data...</div>';
+
+    try {
+        const res = await fetch('/api/continuity-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to generate plan');
+
+        if (badge) {
+            badge.textContent = data.commute_risk ? '⚠️ Commute Risk Detected' : 'Monitoring';
+            badge.style.background = data.commute_risk ? '#fef3c7' : '#ecfdf5';
+            badge.style.color = data.commute_risk ? '#92400e' : '#065f46';
+        }
+
+        const riskText = data.commute_risk
+            ? 'High commute-cost scenario detected. Recommended response: <strong>3 Physical Days + 2 Remote Days</strong>.'
+            : 'Fuel cost is below the prototype critical threshold. The plan is shown as a preparedness scenario.';
+        const sourceText = data.price_source === 'hackathon-simulation' ? 'Hackathon simulation' : 'Current tracked price';
+
+        output.innerHTML = `
+            <div style="padding:14px;border-radius:12px;background:${data.commute_risk ? '#fffbeb' : '#f0fdf4'};border:1px solid ${data.commute_risk ? '#fde68a' : '#bbf7d0'};margin-bottom:12px;">
+                <div style="font-weight:700;margin-bottom:4px;">${data.commute_risk ? '⚠️ Commute Risk Detected' : '✓ Continuity Readiness Plan'}</div>
+                <div style="font-size:.82rem;line-height:1.5;color:var(--text-muted);">${riskText}<br>${sourceText}: <strong>Rs ${Number(data.petrol_price).toFixed(2)}/L</strong> · Potential commute-frequency reduction: <strong>40%</strong> <em>(prototype scenario estimate)</em>.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+                ${_continuityCard('fa-bus', 'Mobility Plan', `${data.mobility.families_supported} families · ${data.mobility.walking_groups} walking group(s) · ${data.mobility.carpool_groups} carpool group(s)`) }
+                ${_continuityCard('fa-mobile-screen-button', 'Remote Learning', `${data.remote_learning.students_supported} students · WhatsApp · SMS · IVR/audio`) }
+                ${_continuityCard('fa-house-laptop', 'Mohallah Study Pods', `${data.study_pods.pods_formed} pod(s) · ${data.study_pods.families_supported} families supported · ${data.study_pods.families_unmatched} unmatched`) }
+                ${_continuityCard('fa-shield-halved', 'Student Safety', `${data.safety.active_commutes} live commute(s) · ${data.safety.active_sos} active SOS · ${data.safety.stale_commutes} stale`) }
+            </div>
+            <div style="margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;">
+                <div style="font-weight:700;margin-bottom:8px;"><i class="fa-solid fa-chart-line"></i> Projected Impact</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <span class="badge">Potential commute reduction: 40%</span>
+                    <span class="badge">Mobility families: ${data.impact.families_supported_by_mobility}</span>
+                    <span class="badge">Remote-learning students: ${data.impact.students_supported_by_remote_learning}</span>
+                    <span class="badge">Study-pod families: ${data.impact.families_supported_by_study_pods}</span>
+                    <span class="badge">Estimated monthly transport saving: Rs ${Number(data.impact.estimated_monthly_transport_saving).toLocaleString()}</span>
+                    <span class="badge">Estimated trips avoided: ~${Math.round((data.total_students || 0) * 8)}/month</span>
+                    <span class="badge">Active safety alerts: ${data.impact.active_safety_alerts}</span>
+                </div>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <a class="btn btn-outline" href="#study-pods">View Study Pods</a>
+                    <a class="btn btn-primary" href="#live-safety-map">Open Live Safety Map</a>
+                </div>
+                <p style="margin:10px 0 0;color:var(--text-muted);font-size:.74rem;line-height:1.45;">Estimated/prototype values are scenario outputs derived from the app's current demo data and commute-cost model; they are not validated real-world outcomes.</p>
+            </div>`;
+    } catch (err) {
+        output.innerHTML = '<div style="padding:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;color:#991b1b;font-size:.84rem;"><i class="fa-solid fa-triangle-exclamation"></i> ' + (err.message || 'Unable to generate the continuity plan.') + '</div>';
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Continuity Plan';
+    }
+}
+
+function _continuityCard(icon, title, text) {
+    return `<div style="padding:13px;border:1px solid var(--border);border-radius:12px;background:#fff;">
+        <div style="font-weight:700;font-size:.84rem;margin-bottom:5px;"><i class="fa-solid ${icon}" style="color:var(--primary);"></i> ${title}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);line-height:1.45;">${text}</div>
+    </div>`;
+}
 
 // --- OFFLINE LEARNING PACKETS ---
 function downloadPacket(level) {

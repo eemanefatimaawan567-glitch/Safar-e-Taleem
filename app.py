@@ -273,6 +273,138 @@ def get_my_study_pod(user):
 
     return {'status': 'unmatched'}
 
+
+def build_parent_transport_recommendation(user, nearby_count, cluster_type, school_distance_km,
+                                          monthly_fuel, carpool_info):
+    """Turn the existing commute calculations into one clear parent action.
+
+    This deliberately reuses the DBSCAN/distance/savings logic already used by
+    the dashboard. It does not call the LLM, so the result is deterministic and
+    explainable during a demo.
+    """
+    group_size = max(1, nearby_count + 1)
+
+    if nearby_count <= 0 or cluster_type == 'Individual Transport':
+        return {
+            'kind': 'none',
+            'title': 'No Nearby Group Match Yet',
+            'icon': 'fa-route',
+            'summary': 'No suitable nearby transport group is currently available.',
+            'group_size': 1,
+            'distance_km': round(school_distance_km, 1),
+            'estimated_saving': 0,
+        }
+
+    is_walking = 'Walking' in (cluster_type or '') or school_distance_km <= 1.0
+    if is_walking:
+        return {
+            'kind': 'walking',
+            'title': 'Walking School Bus Recommended',
+            'icon': 'fa-person-walking',
+            'summary': 'Nearby same-area families can travel together in a supervised walking group.',
+            'group_size': group_size,
+            'distance_km': round(school_distance_km, 1),
+            # If walking replaces the family's current motor commute, the
+            # existing monthly fuel estimate is the potential fuel saving.
+            'estimated_saving': round(monthly_fuel, 0),
+        }
+
+    return {
+        'kind': 'carpool',
+        'title': 'Carpool Recommended',
+        'icon': 'fa-car-side',
+        'summary': 'Nearby families can share rides instead of travelling separately.',
+        'group_size': group_size,
+        'distance_km': round(school_distance_km, 1),
+        'estimated_saving': round(carpool_info.get('saving_per_student', 0), 0),
+    }
+
+
+def build_school_decision_data(petrol_price=None):
+    """Aggregate existing features into one principal decision/continuity view."""
+    all_parents = User.query.filter_by(role='parent').all()
+    total_parents = len(all_parents)
+    total_students = sum((u.children_count or 0) for u in all_parents)
+    clusters = cluster_families(all_parents, school_distance_fn=commute_distance_km) if all_parents else []
+
+    matched_clusters = [c for c in clusters if c['cluster_id'] != -1 and len(c['members']) >= 2]
+    walking_groups = len([c for c in matched_clusters if 'Walking' in c['transport_type']])
+    carpool_groups = len([
+        c for c in matched_clusters
+        if ('Carpool' in c['transport_type'] or 'Shared' in c['transport_type'])
+    ])
+    families_in_mobility_groups = len({m.id for c in matched_clusters for m in c['members']})
+
+    study_pods, unmatched_families = form_study_pods(all_parents) if all_parents else ([], [])
+    families_covered_by_pods = sum(len(p['members']) for p in study_pods)
+    device_owner_count = len([u for u in all_parents if u.has_smart_device])
+
+    now = utcnow()
+    shares = LocationShare.query.filter_by(is_active=True).all()
+    active_commutes = len(shares)
+    active_sos = sum(1 for s in shares if s.is_sos)
+    stale_commutes = sum(
+        1 for s in shares
+        if not s.last_updated or (now - s.last_updated).total_seconds() > STALE_AFTER_SECONDS
+    )
+
+    if petrol_price is None:
+        petrol_price = get_tracked_petrol_price()['price']
+
+    # The demo's established threshold is Rs 380/L. Keep the wording as a
+    # prototype decision rule rather than a real-world validated threshold.
+    commute_risk = float(petrol_price) > 380
+
+    monthly_costs = []
+    for parent in all_parents:
+        distance = commute_distance_km(parent)
+        monthly_costs.append(calculate_fuel_cost(distance * 2, float(petrol_price)))
+    estimated_total_monthly_cost = round(sum(monthly_costs), 0) if monthly_costs else 0
+    estimated_hybrid_saving = round(estimated_total_monthly_cost * 0.40, 0)
+
+    return {
+        'petrol_price': round(float(petrol_price), 2),
+        'commute_risk': commute_risk,
+        'hybrid_schedule': {
+            'physical_days': 3,
+            'remote_days': 2,
+            'potential_commute_reduction_pct': 40,
+            'label': 'Prototype scenario estimate',
+        },
+        'mobility': {
+            'walking_groups': walking_groups,
+            'carpool_groups': carpool_groups,
+            'families_supported': families_in_mobility_groups,
+            'total_groups': len(matched_clusters),
+        },
+        'remote_learning': {
+            'students_supported': total_students,
+            'channels': ['WhatsApp micro-lessons', 'SMS tasks', 'IVR/audio explainers'],
+            'mode': 'simulated delivery where external gateways are not configured',
+        },
+        'study_pods': {
+            'pods_formed': len(study_pods),
+            'families_supported': families_covered_by_pods,
+            'families_unmatched': len(unmatched_families),
+            'device_hosts': device_owner_count,
+        },
+        'safety': {
+            'active_commutes': active_commutes,
+            'active_sos': active_sos,
+            'stale_commutes': stale_commutes,
+        },
+        'impact': {
+            'potential_commute_reduction_pct': 40,
+            'families_supported_by_mobility': families_in_mobility_groups,
+            'students_supported_by_remote_learning': total_students,
+            'families_supported_by_study_pods': families_covered_by_pods,
+            'estimated_monthly_transport_saving': estimated_hybrid_saving,
+            'active_safety_alerts': active_sos,
+        },
+        'total_parents': total_parents,
+        'total_students': total_students,
+    }
+
 # Helper function for Pakistani CNIC validation (XXXXX-XXXXXXX-X)
 def validate_cnic(cnic_str):
     pattern = r"^\d{5}-\d{7}-\d{1}$"
@@ -641,6 +773,14 @@ def parent_dashboard():
     recommendation = recommend_transport(sample_distance, sample_group)
     monthly_fuel = calculate_fuel_cost(sample_distance * 2, petrol['price'])
     carpool_info = calculate_carpool_saving(sample_group, sample_distance * 2, petrol['price'])
+    smart_recommendation = build_parent_transport_recommendation(
+        user,
+        nearby_count,
+        user_cluster_type,
+        sample_distance,
+        monthly_fuel,
+        carpool_info,
+    )
 
     # Group Coordinator: one parent per pod, chosen deterministically so every
     # member of the pod agrees on who it is.
@@ -671,6 +811,7 @@ def parent_dashboard():
         coordinator_name=coordinator_name,
         coordinator_id=coordinator.id if coordinator else None,
         study_pod=study_pod,
+        smart_recommendation=smart_recommendation,
     )
 
 @app.route('/principal')
@@ -708,6 +849,8 @@ def principal_dashboard():
     no_device_count = total_parents - device_owner_count
     families_covered_by_pods = sum(len(p['members']) for p in study_pods)
 
+    decision_data = build_school_decision_data(petrol['price'])
+
     return render_template(
         'principal.html',
         user=user,
@@ -729,6 +872,7 @@ def principal_dashboard():
         device_owner_count=device_owner_count,
         no_device_count=no_device_count,
         families_covered_by_pods=families_covered_by_pods,
+        decision_data=decision_data,
     )
 
 
@@ -960,6 +1104,44 @@ def toggle_hybrid():
     })
 
 
+@app.route('/api/continuity-plan', methods=['POST'])
+@login_required
+@rate_limit(30, 60)
+def continuity_plan():
+    """Aggregate the existing mobility, learning, pod and safety systems.
+
+    The optional simulated_price comes from the existing hackathon petrol
+    slider. It is used only for the generated preview and is never persisted.
+    """
+    user = get_current_user()
+    if not user or user.role != 'principal':
+        return jsonify({'error': 'Principal access required'}), 403
+
+    body = request.get_json(silent=True) or {}
+    simulated_price = body.get('simulated_price')
+    source = 'live'
+
+    if simulated_price is not None:
+        try:
+            simulated_price = float(simulated_price)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'simulated_price must be numeric'}), 400
+        if not 250 <= simulated_price <= 600:
+            return jsonify({'error': 'simulated_price must be between 250 and 600'}), 400
+        price = simulated_price
+        source = 'hackathon-simulation'
+    else:
+        price = get_tracked_petrol_price()['price']
+
+    plan = build_school_decision_data(price)
+    plan.update({
+        'status': 'success',
+        'price_source': source,
+        'generated_at': utcnow().isoformat(),
+    })
+    return jsonify(plan)
+
+
 # ---------------------------------------------------------
 # FEATURE: LIVE COMMUTE LOCATION (SAFETY)
 # ---------------------------------------------------------
@@ -1181,6 +1363,77 @@ def location_pod():
     """Poll live pod locations (fallback path — clients prefer the SSE stream)."""
     return jsonify(build_pod_payload(get_current_user()))
 
+
+
+@app.route('/api/principal/sos/<int:user_id>/resolve', methods=['POST'])
+@login_required
+@rate_limit(30, 60)
+def principal_resolve_sos(user_id):
+    """Allow a principal to resolve an active school-commute SOS."""
+    user = get_current_user()
+    if not user or user.role != 'principal':
+        return jsonify({'error': 'Principal access required'}), 403
+    share = LocationShare.query.filter_by(user_id=user_id, is_active=True).first()
+    if not share or not share.is_sos:
+        return jsonify({'error': 'No active SOS found for this student'}), 404
+    share.is_sos = False
+    share.sos_triggered_at = None
+    db.session.commit()
+    return jsonify({'resolved': True, 'user_id': user_id})
+
+
+@app.route('/api/demo/scenario', methods=['POST'])
+@login_required
+@rate_limit(30, 60)
+def demo_scenario():
+    """Principal-only, clearly labelled demo simulator for judging.
+
+    It reuses one existing demo parent LocationShare instead of creating fake
+    users. Reset removes only the simulator-created commute/SOS state.
+    """
+    principal = get_current_user()
+    if not principal or principal.role != 'principal':
+        return jsonify({'error': 'Principal access required'}), 403
+    action = (request.get_json(silent=True) or {}).get('action', 'normal')
+    if action not in ('normal', 'fuel_crisis', 'student_sos', 'reset'):
+        return jsonify({'error': 'Unknown demo scenario'}), 400
+
+    parent = User.query.filter_by(role='parent').order_by(User.id.asc()).first()
+    if not parent:
+        return jsonify({'error': 'No demo parent is available'}), 404
+
+    share = LocationShare.query.filter_by(user_id=parent.id).first()
+    if not share:
+        share = LocationShare(user_id=parent.id)
+        db.session.add(share)
+
+    if action in ('normal', 'reset'):
+        share.is_sos = False
+        share.sos_triggered_at = None
+        # Only stop a commute that carries our simulator marker timestamp.
+        if session.get('demo_scenario_parent_id') == parent.id:
+            share.is_active = False
+        session.pop('demo_scenario_parent_id', None)
+    elif action == 'student_sos':
+        # Reuse the parent's stored home coordinates, with Islamabad fallback
+        # only for demo data that has no geocoded location yet.
+        share.latitude = parent.latitude if parent.latitude is not None else 33.6844
+        share.longitude = parent.longitude if parent.longitude is not None else 73.0479
+        share.is_active = True
+        share.started_at = share.started_at or utcnow()
+        share.last_updated = utcnow()
+        share.is_sos = True
+        share.sos_triggered_at = utcnow()
+        session['demo_scenario_parent_id'] = parent.id
+
+    db.session.commit()
+    return jsonify({
+        'ok': True,
+        'action': action,
+        'demo_parent': {'id': parent.id, 'name': parent.name},
+        'simulated': True,
+        'note': 'Demo Scenario Simulator — not a real emergency.'
+    })
 
 # ---------------------------------------------------------
 # GEO SERVICES — real walking route + address lookup

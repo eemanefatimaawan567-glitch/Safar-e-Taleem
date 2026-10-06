@@ -19,11 +19,11 @@ license: mit
 
 ## 🌐 Live Demo
 
-🚀 **Live application:** https://eemanefatimaawan.pythonanywhere.com/
+🚀 **Live application:** https://safar-e-taleem.onrender.com/
 
 **One-click hackathon access:**
-- 👨‍👩‍👧 **Parent — Ayesha Khan:** https://eemanefatimaawan.pythonanywhere.com/demo-login/parent
-- 🏫 **Principal — Dr. Zainab Qureshi:** https://eemanefatimaawan.pythonanywhere.com/demo-login/principal
+- 👨‍👩‍👧 **Parent — Ayesha Khan:** https://safar-e-taleem.onrender.com/parent
+- 🏫 **Principal — Dr. Zainab Qureshi:**https://safar-e-taleem.onrender.com/parent
 
 No installation or password is required to explore the deployed prototype.
 
